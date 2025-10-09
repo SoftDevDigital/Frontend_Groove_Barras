@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import { api } from "@/lib/api";
 import { getToken } from "@/lib/auth";
 import Guard from "@/components/Guard";
@@ -18,7 +18,7 @@ type User = {
   updatedAt: string;
 };
 
-export default function UsersPage() {
+function UsersContent() {
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState<string | null>(null);
@@ -111,8 +111,6 @@ export default function UsersPage() {
   }
 
   return (
-    <Guard roles={["admin"]}>
-      <Navbar />
       <main className={styles.wrap}>
         <header className={styles.header}>
           <h1>Usuarios</h1>
@@ -205,7 +203,6 @@ export default function UsersPage() {
           </div>
         )}
       </main>
-    </Guard>
   );
 }
 
@@ -217,4 +214,15 @@ function formatDate(iso: string) {
   } catch {
     return iso;
   }
+}
+
+export default function UsersPage() {
+  return (
+    <Guard roles={["admin"]}>
+      <Navbar />
+      <Suspense fallback={<div style={{ padding: 20 }}>Cargando...</div>}>
+        <UsersContent />
+      </Suspense>
+    </Guard>
+  );
 }

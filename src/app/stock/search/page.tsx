@@ -3,7 +3,7 @@
 
 import Guard from "@/components/Guard";
 import Navbar from "@/components/Navbar";
-import { useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import { api } from "@/lib/api";
 import { getToken, hasRole } from "@/lib/auth";
 import form from "@/styles/Forms.module.css";
@@ -22,7 +22,7 @@ type StockRow = {
   notes?: string;
 };
 
-export default function StockSearchPage() {
+function StockSearchContent() {
   const qs = useSearchParams();
 
   // Form
@@ -233,8 +233,6 @@ export default function StockSearchPage() {
   }
 
   return (
-    <Guard roles={["admin"]}>
-      <Navbar />
       <main className={form.container}>
         <form className={form.form} onSubmit={onSearch} noValidate>
           <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
@@ -461,6 +459,16 @@ export default function StockSearchPage() {
           </div>
         </section>
       </main>
+  );
+}
+
+export default function StockSearchPage() {
+  return (
+    <Guard roles={["admin"]}>
+      <Navbar />
+      <Suspense fallback={<div style={{ padding: 20 }}>Cargando...</div>}>
+        <StockSearchContent />
+      </Suspense>
     </Guard>
   );
 }

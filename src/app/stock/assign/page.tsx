@@ -3,7 +3,7 @@
 
 import Guard from "@/components/Guard";
 import Navbar from "@/components/Navbar";
-import { useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import { api } from "@/lib/api";
 import form from "@/styles/Forms.module.css";
 import btn from "@/styles/Buttons.module.css";
@@ -28,7 +28,7 @@ type AssignResponse = {
   createdAt: string; // ISO
 };
 
-export default function StockAssignPage() {
+function StockAssignContent() {
   const qs = useSearchParams();
 
   // Campos del formulario
@@ -130,8 +130,6 @@ export default function StockAssignPage() {
   }
 
   return (
-    <Guard roles={["admin"]}>
-      <Navbar />
       <main className={form.container}>
         <form className={form.form} onSubmit={onSubmit} noValidate>
           <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
@@ -221,7 +219,6 @@ export default function StockAssignPage() {
           </small>
         </form>
       </main>
-    </Guard>
   );
 }
 
@@ -242,4 +239,15 @@ function formatDate(iso?: string) {
   } catch {
     return String(iso);
   }
+}
+
+export default function StockAssignPage() {
+  return (
+    <Guard roles={["admin"]}>
+      <Navbar />
+      <Suspense fallback={<div style={{ padding: 20 }}>Cargando...</div>}>
+        <StockAssignContent />
+      </Suspense>
+    </Guard>
+  );
 }

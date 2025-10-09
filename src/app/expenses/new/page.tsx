@@ -3,7 +3,7 @@
 
 import Guard from "@/components/Guard";
 import Navbar from "@/components/Navbar";
-import { useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import { api } from "@/lib/api";
 import { getToken, hasRole } from "@/lib/auth";
 import form from "@/styles/Forms.module.css";
@@ -64,7 +64,7 @@ function mapCategoryToType(c: string): "supplies" | "staff" | "equipment" | "oth
   }
 }
 
-export default function ExpenseNewPage() {
+function ExpenseNewContent() {
   const qs = useSearchParams();
 
   // Campos
@@ -168,8 +168,6 @@ export default function ExpenseNewPage() {
   }
 
   return (
-    <Guard roles={["admin"]}>
-      <Navbar />
       <main className={form.container}>
         <form className={form.form} onSubmit={onSubmit} noValidate>
           <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
@@ -266,7 +264,6 @@ export default function ExpenseNewPage() {
           </small>
         </form>
       </main>
-    </Guard>
   );
 }
 
@@ -294,4 +291,15 @@ function formatMoney(n?: number) {
   } catch {
     return n.toFixed(2);
   }
+}
+
+export default function ExpenseNewPage() {
+  return (
+    <Guard roles={["admin"]}>
+      <Navbar />
+      <Suspense fallback={<div style={{ padding: 20 }}>Cargando...</div>}>
+        <ExpenseNewContent />
+      </Suspense>
+    </Guard>
+  );
 }
