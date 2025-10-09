@@ -2,7 +2,9 @@ export type User = {
   id: string;
   email: string;
   name: string;
-  role: "admin" | "bar_user";
+  role: "admin" | "bar_user" | "bartender"; // ⬅️ ahora incluye bartender
+  document?: string;                          // ⬅️ agregado
+  employeeRole?: "manager" | "bartender" | "cashier" | string; // ⬅️ agregado
   createdAt?: string;
   updatedAt?: string;
 };

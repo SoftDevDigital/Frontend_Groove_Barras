@@ -6,6 +6,7 @@ import styles from "@/styles/Forms.module.css";
 import btn from "@/styles/Buttons.module.css";
 
 type Role = "admin" | "bar_user" | "bartender"; // 👈 incluye bartender para tipos
+type EmployeeRole = "manager" | "bartender" | "cashier" | string;
 
 // 👇 helper único para decidir a dónde ir según el rol
 function redirectByRole() {
@@ -29,7 +30,11 @@ export default function RegisterPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
-  const [role, setRole] = useState<Role>("bar_user"); // 👈 visual, no se envía
+  // ⬇️ AHORA sí se envía al backend:
+  const [role, setRole] = useState<Role>("bartender"); 
+  const [document, setDocument] = useState(""); // DNI / documento
+  const [employeeRole, setEmployeeRole] = useState<EmployeeRole>("bartender");
+
   const [errors, setErrors] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
 
@@ -47,8 +52,12 @@ export default function RegisterPage() {
       errs.push("password must be longer than or equal to 6 characters");
     if (!name || name.trim().length < 2)
       errs.push("name must be longer than or equal to 2 characters");
-    return errs; // 👈 no validar role
-  }, [email, password, name]);
+    if (!role) errs.push("role should not be empty");
+    if (!employeeRole) errs.push("employeeRole should not be empty");
+    if (!document || document.trim().length < 6)
+      errs.push("document must be longer than or equal to 6 characters");
+    return errs;
+  }, [email, password, name, role, employeeRole, document]);
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -61,8 +70,8 @@ export default function RegisterPage() {
 
     setLoading(true);
     try {
-      // Enviar SOLO lo que acepta el endpoint
-      const body = { email, password, name };
+      // ⬇️ Enviar EXACTAMENTE lo que acepta el endpoint según tus cURLs
+      const body = { email, password, name, role, document, employeeRole };
 
       const { data } = await api.post("/auth/register", body, {
         headers: { "Content-Type": "application/json" },
@@ -132,19 +141,39 @@ export default function RegisterPage() {
           required
         />
 
-        {/* visual: no se envía al backend */}
+        {/* Ahora el rol se envía al backend */}
         <label>Rol</label>
         <select
           value={role}
           onChange={(e) => setRole(e.target.value as Role)}
           required
         >
-          <option value="bar_user">Usuario de barra</option>
           <option value="admin">Admin</option>
+          <option value="bartender">Bartender</option>
+          <option value="bar_user">Usuario de barra</option>
         </select>
-        <small style={{ color:"#6b7280", marginTop: -6 }}>
-          * El rol real lo asigna el sistema. Este valor no se envía en el registro.
-        </small>
+
+        {/* Nuevos campos según tus cURLs */}
+        <label>Documento</label>
+        <input
+          value={document}
+          onChange={(e) => setDocument(e.target.value)}
+          placeholder="12345678"
+          required
+        />
+
+        <label>Rol de empleado</label>
+        <select
+          value={employeeRole}
+          onChange={(e) => setEmployeeRole(e.target.value)}
+          required
+        >
+          {/* Valores de ejemplo: manager/bartender tal como en tus cURLs */}
+          <option value="manager">manager</option>
+          <option value="bartender">bartender</option>
+          {/* Podés agregar más opciones si tu backend las contempla */}
+          <option value="cashier">cashier</option>
+        </select>
 
         {errors.length > 0 && (
           <div className={styles.error} style={{ textAlign: "left" }}>

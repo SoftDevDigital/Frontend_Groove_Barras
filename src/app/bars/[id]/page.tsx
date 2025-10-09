@@ -5,6 +5,7 @@ import Guard from "@/components/Guard";
 import Navbar from "@/components/Navbar";
 import { api } from "@/lib/api";
 import { getToken, hasRole } from "@/lib/auth";
+import Link from "next/link"; // ⬅️ NUEVO
 
 type BarDetail = {
   id: string;
@@ -241,7 +242,7 @@ export default function BarDetailPage() {
               <Row label="Actualizada">{formatDate(bar.updatedAt)}</Row>
 
               {hasRole(["admin"]) && (
-                <div style={{ display: "flex", gap: 10, marginTop: 6 }}>
+                <div style={{ display: "flex", gap: 10, marginTop: 6, flexWrap: "wrap" }}>
                   <button
                     onClick={handleSave}
                     disabled={saving}
@@ -273,7 +274,26 @@ export default function BarDetailPage() {
                     Refrescar
                   </button>
 
-                  {/* 👇 NUEVO: botón rojo para eliminar */}
+                  {/* ⬇️ NUEVO: acceso directo al resumen de ventas */}
+                  <Link
+                    href={`/bars/${id}/sales-summary`}
+                    style={{
+                      padding: "8px 12px",
+                      borderRadius: 8,
+                      border: "1px solid #e5e7eb",
+                      background: "#fff",
+                      color: "#111827",
+                      fontWeight: 700,
+                      textDecoration: "none",
+                      display: "inline-flex",
+                      alignItems: "center",
+                    }}
+                    title="Ver resumen de ventas de esta barra"
+                  >
+                    Resumen de ventas
+                  </Link>
+
+                  {/* 👇 botón rojo para eliminar */}
                   <button
                     onClick={handleDelete}
                     disabled={deleting}
