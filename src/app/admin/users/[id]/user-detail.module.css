@@ -1,0 +1,120 @@
+.wrap { padding: 20px; }
+
+.topbar {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+.topbar h1 { margin: 0; }
+
+.card {
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 12px;
+}
+
+.grid {
+  display: grid;
+  gap: 10px;
+}
+
+.row {
+  display: grid;
+  grid-template-columns: 160px 1fr;
+  gap: 10px;
+  align-items: center;
+}
+
+.label {
+  color: #6b7280;
+  font-weight: 600;
+}
+
+.value {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.code {
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  padding: 2px 6px;
+  border-radius: 6px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  font-size: 12px;
+  color: #374151;
+}
+
+.badgeAdmin, .badgeUser, .badgeBartender {
+  font-size: 12px;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 999px;
+  text-transform: uppercase;
+}
+.badgeAdmin { background: #fef3c7; color: #92400e; }
+.badgeUser  { background: #e0e7ff; color: #3730a3; }
+.badgeBartender { background: #d1fae5; color: #065f46; } /* 👈 agregado */
+
+.btn, .btnGhost, .btnTiny {
+  border: none;
+  cursor: pointer;
+  border-radius: 8px;
+  font-weight: 600;
+}
+.btn {
+  background: #111827; color: #fff; padding: 8px 12px; height: 36px;
+}
+.btn:disabled { opacity: .6; cursor: default; }
+
+.btnGhost {
+  background: transparent; color: #111827; padding: 6px 8px;
+}
+.btnGhost:hover { text-decoration: underline; text-underline-offset: 2px; }
+
+.btnTiny {
+  padding: 4px 8px;
+  font-size: 12px;
+  background: #f3f4f6; color: #111827;
+}
+.btnTiny:hover { background: #e5e7eb; }
+
+/* 👇 select para editor de rol */
+.select {
+  height: 36px;
+  padding: 6px 10px;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  font-size: 14px;
+  outline: none;
+}
+.select:focus {
+  border-color: #6366f1;
+  box-shadow: 0 0 0 3px rgba(99,102,241,0.15);
+}
+
+.error {
+  background: #fef2f2;
+  color: #991b1b;
+  border: 1px solid #fecaca;
+  padding: 10px 12px;
+  border-radius: 10px;
+  margin-bottom: 12px;
+}
+
+.success {
+  background: #ecfdf5;
+  color: #065f46;
+  border: 1px solid #a7f3d0;
+  padding: 10px 12px;
+  border-radius: 10px;
+  margin-bottom: 12px;
+}
+
+.muted { color: #6b7280; }
+.footer { margin-top: 12px; }
