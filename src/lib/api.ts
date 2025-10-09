@@ -2,7 +2,7 @@ import axios from "axios";
 import { getToken, logout } from "./auth";
 
 export const api = axios.create({
-  baseURL: process.env.NEXT_PUBLIC_API_BASE || "http://localhost:3001",
+  baseURL: "https://api.festgogest.com",
   headers: { "Content-Type": "application/json" },
 });
 
