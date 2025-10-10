@@ -1,115 +1,132 @@
-/* Layout base */
 .container {
   display: flex;
   min-height: 100vh;
   align-items: center;
   justify-content: center;
-  padding: 24px;
-  background: #f6f7f9;
+  padding: var(--spacing-xl);
+  background: var(--background);
 }
 
-/* La clave: forzar esquema claro para inputs, selects, etc. */
 .form {
   width: 100%;
-  max-width: 420px;
+  max-width: 480px;
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  background: #ffffff;
-  border: 1px solid #eee;
-  border-radius: 12px;
-  padding: 20px;
-  color-scheme: light;           /* <-- evita inputs oscuros en dark mode */
-}
-
-/* Tipografía con alto contraste */
-.form h1 {
-  margin: 0 0 6px 0;
-  color: #111;                   /* contraste fuerte */
-  font-weight: 800;
-  font-size: 24px;
-  letter-spacing: -0.2px;
+  gap: var(--spacing-lg);
+  background: var(--surface);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  padding: var(--spacing-2xl);
+  box-shadow: var(--shadow-lg);
 }
 
 .form label {
-  color: #222;                   /* contraste con fondo blanco */
-  font-weight: 600;
-  font-size: 14px;
+  color: var(--text-primary);
+  font-weight: 500;
+  font-size: 0.9375rem;
+  margin-bottom: -8px;
 }
 
 /* Campos */
 .form input,
-.form select {
-  padding: 10px;
-  border: 1px solid #cfcfcf;
-  border-radius: 8px;
-  background: #fff;              /* asegura fondo claro */
-  color: #111;                   /* texto bien oscuro */
+.form select,
+.form textarea {
+  padding: 11px 14px;
+  border: 1.5px solid var(--border-color);
+  border-radius: var(--radius-md);
+  font-size: 0.9375rem;
+  color: var(--text-primary);
+  background: var(--surface);
+  transition: all var(--transition-base);
   outline: none;
+  line-height: 1.5;
 }
 
-.form input::placeholder,
-.form select::placeholder {
-  color: #6b7280;                /* gris legible */
-  opacity: 1;                    /* no atenuar */
+.form input:hover,
+.form select:hover,
+.form textarea:hover {
+  border-color: var(--border-color-hover);
 }
 
 .form input:focus,
+.form select:focus,
+.form textarea:focus {
+  border-color: var(--color-accent);
+  box-shadow: 0 0 0 3px var(--color-accent-lighter);
+}
+
+.form input:disabled,
+.form select:disabled,
+.form textarea:disabled {
+  background: var(--color-gray-50);
+  color: var(--text-tertiary);
+  cursor: not-allowed;
+}
+
+.form input::placeholder,
+.form textarea::placeholder {
+  color: var(--text-tertiary);
+}
+
+.form select {
+  cursor: pointer;
+  background: linear-gradient(to bottom, #ffffff 0%, #fafbfc 100%);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 16 16'%3E%3Cpath fill='%232C3E50' d='M8 11L3 6h10z'/%3E%3C/svg%3E"),
+    linear-gradient(to bottom, #ffffff 0%, #fafbfc 100%);
+  background-repeat: no-repeat, repeat;
+  background-position: right 12px center, 0 0;
+  padding-right: 42px;
+  appearance: none;
+  font-weight: 500;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05), inset 0 1px 0 rgba(255, 255, 255, 0.8);
+}
+
+.form select:hover {
+  background: linear-gradient(to bottom, #ffffff 0%, #f5f6f8 100%);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 16 16'%3E%3Cpath fill='%235B7C99' d='M8 11L3 6h10z'/%3E%3C/svg%3E"),
+    linear-gradient(to bottom, #ffffff 0%, #f5f6f8 100%);
+  background-repeat: no-repeat, repeat;
+  background-position: right 12px center, 0 0;
+}
+
 .form select:focus {
-  border-color: #a3bffa;         /* azul suave */
-  box-shadow: 0 0 0 3px rgba(163,191,250,0.35);
+  background: #ffffff;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 16 16'%3E%3Cpath fill='%235B7C99' d='M8 11L3 6h10z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
 }
 
-/* Arreglo para Chrome/Edge autofill en claro */
-.form input:-webkit-autofill,
-.form input:-webkit-autofill:hover,
-.form input:-webkit-autofill:focus,
-.form select:-webkit-autofill {
-  -webkit-text-fill-color: #111 !important;
-  box-shadow: 0 0 0px 1000px #fff inset !important;
-  transition: background-color 9999s ease-out 0s;
+.form textarea {
+  min-height: 100px;
+  resize: vertical;
 }
 
-/* Mensajes */
 .error {
-  color: #c62828;
-  font-size: 0.9rem;
-  margin: 4px 0 0 0;
+  color: var(--color-error);
+  background: var(--color-error-light);
+  border: 1px solid var(--color-error);
+  padding: var(--spacing-md) var(--spacing-lg);
+  border-radius: var(--radius-md);
+  font-size: 0.9375rem;
+  line-height: 1.5;
 }
 
-/* ------ (lo demás de tu archivo original) ------ */
-.table {
-  width: 100%;
-  border-collapse: collapse;
-  margin-top: 20px;
-  font-size: 14px;
+.success {
+  color: var(--color-success);
+  background: var(--color-success-light);
+  border: 1px solid var(--color-success);
+  padding: var(--spacing-md) var(--spacing-lg);
+  border-radius: var(--radius-md);
+  font-size: 0.9375rem;
+  line-height: 1.5;
 }
 
-.table th,
-.table td {
-  border: 1px solid #e5e5e5;
-  padding: 8px 12px;
-  text-align: left;
-}
-
-.table th {
-  background-color: #f8f8f8;
-  font-weight: 600;
-}
-
-.table tr:nth-child(even) {
-  background-color: #fafafa;
-}
-
-.table tr:hover {
-  background-color: #f1f1f1;
-}
-
-.table a {
-  color: #0070f3;
-  text-decoration: none;
-}
-
-.table a:hover {
-  text-decoration: underline;
+.info {
+  color: var(--color-info);
+  background: var(--color-info-light);
+  border: 1px solid var(--color-info);
+  padding: var(--spacing-md) var(--spacing-lg);
+  border-radius: var(--radius-md);
+  font-size: 0.9375rem;
+  line-height: 1.5;
 }

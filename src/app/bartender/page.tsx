@@ -6,7 +6,7 @@ import Guard from "@/components/Guard";
 import Navbar from "@/components/Navbar";
 import { api } from "@/lib/api";
 import { getToken, hasRole } from "@/lib/auth";
-import btn from "@/styles/Buttons.module.css";
+import styles from "./bartender.module.css";
 import Link from "next/link";
 
 type CartItem = {
@@ -577,33 +577,24 @@ export default function BartenderCartPage() {
   return (
     <Guard roles={["bartender", "admin"]}>
       <Navbar />
-      <main style={{ padding: 20, display: "grid", gap: 12, maxWidth: 1000, margin: "0 auto" }}>
-        <header style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
-          <h1 style={{ marginRight: "auto" }}>Carrito (Bartender)</h1>
+      <main className={styles.pageContainer}>
+        <header className={styles.header}>
+          <h1>🛒 Carrito</h1>
 
-          <button className={btn.secondary} onClick={loadCart} disabled={loadingCart}>
-            {loadingCart ? "Cargando carrito…" : summary ? "Refrescar carrito" : "Cargar carrito actual"}
+          <button className={styles.secondaryButton} onClick={loadCart} disabled={loadingCart}>
+            {loadingCart ? "Cargando..." : summary ? "Refrescar" : "Cargar Carrito"}
           </button>
         </header>
 
         {cartMeta && (
-          <section
-            style={{
-              border: "1px solid #e5e7eb",
-              background: "#fff",
-              borderRadius: 12,
-              padding: 12,
-              display: "grid",
-              gap: 8,
-            }}
-          >
-            <strong style={{ fontSize: 16 }}>Carrito actual</strong>
+          <section className={styles.section}>
+            <h3 className={styles.sectionTitle}>Información del Carrito</h3>
             {cartErr && (
-              <div style={{ border: "1px solid #fecaca", background: "#fee2e2", color: "#7f1d1d", padding: 10, borderRadius: 10 }}>
+              <div className={styles.alertError}>
                 {cartErr}
               </div>
             )}
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 12 }}>
+            <div className={styles.statsGrid}>
               <Card title="Cart ID" value={cartMeta.id || "—"} />
               <Card title="Bartender" value={cartMeta.bartenderName || cartMeta.bartenderId || "—"} />
               <Card title="Evento" value={cartMeta.eventId || "—"} />
@@ -614,17 +605,20 @@ export default function BartenderCartPage() {
         )}
 
         {/* Entrada de datos base */}
-        <section style={{ border: "1px solid #e5e7eb", background: "#fff", borderRadius: 12, padding: 12, display: "grid", gap: 10 }}>
+        <section className={styles.section}>
+          <h3 className={styles.sectionTitle}>Configuración</h3>
+          
           {/* ===== Evento (select) ===== */}
-          <div style={{ display: "grid", gap: 6 }}>
-            <label>Evento (eventId)</label>
+          <div>
+            <label className={styles.label}>Evento</label>
             <select
               ref={eventRef}
+              className={styles.select}
               value={eventId}
               onChange={(e) => setEventId(e.target.value)}
               disabled={loadingEvents}
             >
-              <option value="">{loadingEvents ? "Cargando eventos…" : "Seleccioná un evento"}</option>
+              <option value="">{loadingEvents ? "Cargando eventos..." : "⚡ Selecciona un evento"}</option>
               {events.map((ev) => (
                 <option key={ev.id} value={ev.id}>
                   {ev.name}
@@ -632,40 +626,42 @@ export default function BartenderCartPage() {
                 </option>
               ))}
             </select>
-            {eventsErr && <small style={{ color: "#b91c1c" }}>{eventsErr}</small>}
-            <small style={{ color: "#6b7280" }}>Este ID asocia el carrito al evento en curso.</small>
+            {eventsErr && <small className={styles.helperText} style={{ color: "var(--color-error)" }}>{eventsErr}</small>}
+            {!eventsErr && <small className={styles.helperText}>Asocia el carrito al evento en curso</small>}
           </div>
 
           {/* ===== Barra (select) ===== */}
-          <div style={{ display: "grid", gap: 6 }}>
-            <label>
-              Barra (barId) <span style={{ color: "#ef4444" }}>*</span>
+          <div>
+            <label className={styles.label}>
+              Barra <span className={styles.required}>*</span>
             </label>
             <select
               ref={barRef}
+              className={styles.select}
               value={barId}
               onChange={(e) => setBarId(e.target.value)}
               disabled={!eventId || loadingBars}
               required
             >
-              {!eventId && <option value="">Elegí un evento primero…</option>}
-              {eventId && <option value="">{loadingBars ? "Cargando barras…" : "Seleccioná una barra"}</option>}
+              {!eventId && <option value="">🔒 Elige un evento primero</option>}
+              {eventId && <option value="">{loadingBars ? "Cargando barras..." : "🍺 Selecciona una barra"}</option>}
               {bars.map((b) => (
                 <option key={b.id} value={b.id}>
                   {b.name}
                 </option>
               ))}
             </select>
-            {barsErr && <small style={{ color: "#b91c1c" }}>{barsErr}</small>}
-            <small style={{ color: "#6b7280" }}>Obligatorio para confirmar el carrito.</small>
+            {barsErr && <small className={styles.helperText} style={{ color: "var(--color-error)" }}>{barsErr}</small>}
+            {!barsErr && <small className={styles.helperText}>Obligatorio para confirmar el carrito</small>}
           </div>
 
           {/* Entrada bartender */}
-          <form onSubmit={onSubmit} style={{ display: "grid", gap: 6 }}>
-            <label>Entrada del bartender</label>
-            <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+          <form onSubmit={onSubmit}>
+            <label className={styles.label}>Entrada del Bartender</label>
+            <div style={{ display: "flex", gap: 12, alignItems: "stretch" }}>
               <input
                 ref={inputRef}
+                className={styles.input}
                 placeholder="Ej: CCC2 (2x Coca Cola 500ml)"
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
@@ -675,21 +671,21 @@ export default function BartenderCartPage() {
                     void sendInput();
                   }
                 }}
-                style={{ flex: 1, minWidth: 260 }}
+                style={{ flex: 1 }}
               />
-              <button className={btn.primary} type="submit" disabled={sending}>
-                {sending ? "Procesando…" : "Agregar"}
+              <button className={styles.primaryButton} type="submit" disabled={sending}>
+                {sending ? "⏳ Procesando" : "➕ Agregar"}
               </button>
             </div>
 
             {lastMsg && !error && (
-              <div style={{ border: "1px solid #bbf7d0", background: "#ecfdf5", color: "#065f46", padding: 10, borderRadius: 10 }}>
-                {lastMsg}
+              <div className={styles.alertSuccess} style={{ marginTop: "1rem" }}>
+                ✓ {lastMsg}
               </div>
             )}
             {error && (
-              <div style={{ border: "1px solid #fecaca", background: "#fee2e2", color: "#7f1d1d", padding: 10, borderRadius: 10 }}>
-                {error}
+              <div className={styles.alertError} style={{ marginTop: "1rem" }}>
+                ✗ {error}
               </div>
             )}
           </form>
@@ -697,9 +693,9 @@ export default function BartenderCartPage() {
 
         {/* Último producto reconocido */}
         {productInfo && (
-          <section style={{ border: "1px solid #e5e7eb", background: "#fff", borderRadius: 12, padding: 12, display: "grid", gap: 8 }}>
-            <strong style={{ fontSize: 16 }}>Último ítem agregado</strong>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 12 }}>
+          <section className={styles.productItem}>
+            <h3 className={styles.sectionTitle}>✨ Último Ítem Agregado</h3>
+            <div className={styles.productGrid}>
               <Card title="Producto" value={productInfo.name} />
               <Card title="Código" value={productInfo.code} />
               <Card title="Precio" value={money(productInfo.price)} />
@@ -710,10 +706,8 @@ export default function BartenderCartPage() {
         )}
 
         {/* Resumen del carrito */}
-        <section style={{ border: "1px solid #e5e7eb", background: "#fff", borderRadius: 12, padding: 12, display: "grid", gap: 10 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <h3 style={{ margin: 0 }}>Carrito</h3>
-          </div>
+        <section className={styles.section}>
+          <h3 className={styles.sectionTitle}>🛍️ Productos en el Carrito</h3>
 
           {/* Mensajes de eliminación puntual */}
           {delMsg && !delErr && (
@@ -728,10 +722,12 @@ export default function BartenderCartPage() {
           )}
 
           {!summary ? (
-            <span style={{ color: "#6b7280" }}>Aún no hay ítems en el carrito.</span>
+            <p className={styles.helperText} style={{ textAlign: "center", padding: "2rem" }}>
+              El carrito está vacío. ¡Empieza a agregar productos!
+            </p>
           ) : (
             <>
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 12 }}>
+              <div className={styles.statsGrid}>
                 <Card title="Items" value={summary.totalItems} />
                 <Card title="Cantidad total" value={summary.totalQuantity} />
                 <Card title="Subtotal" value={money(summary.subtotal)} />
@@ -740,91 +736,84 @@ export default function BartenderCartPage() {
               </div>
 
               <div style={{ overflowX: "auto" }}>
-                <table style={{ width: "100%", borderCollapse: "collapse" }}>
-                  <thead>
-                    <tr>
-                      <Th>Producto</Th>
-                      <Th>Código</Th>
-                      <Th style={{ textAlign: "right" }}>Precio</Th>
-                      <Th style={{ textAlign: "right" }}>Cant.</Th>
-                      <Th style={{ textAlign: "right" }}>Total</Th>
-                      <Th>Unidad</Th>
-                      {/* ===== NUEVO: Acciones ===== */}
-                      <Th>Acciones</Th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {summary.items?.length ? (
-                      summary.items.map((it, i) => (
-                        <tr key={`${it.productId}-${i}`}>
-                          <Td>{it.productName}</Td>
-                          <Td>
-                            <code>{it.productCode}</code>
-                          </Td>
-                          <Td style={{ textAlign: "right" }}>{money(it.price)}</Td>
-                          <Td style={{ textAlign: "right" }}>{it.quantity}</Td>
-                          <Td style={{ textAlign: "right" }}>{money(it.total)}</Td>
-                          <Td>{it.unit || "—"}</Td>
-                          {/* ===== NUEVO: Botón eliminar por ítem ===== */}
-                          <Td>
-                            <button
-                              className={btn.secondary}
-                              onClick={() => deleteCartItem(it.productId)}
-                              disabled={!!deleting[it.productId]}
-                              title="Eliminar este producto del carrito"
-                              style={{
-                                borderColor: "#ef4444",
-                                color: "#ef4444",
-                                padding: "6px 10px",
-                                fontSize: 12,
-                              }}
-                            >
-                              {deleting[it.productId] ? "Eliminando…" : "Eliminar"}
-                            </button>
-                          </Td>
-                        </tr>
-                      ))
-                    ) : (
-                      <tr>
-                        <Td colSpan={7}>Carrito vacío.</Td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
+                <table className={styles.cartTable}>
+  <thead>
+    <tr>
+      <th>Producto</th>
+      <th>Código</th>
+      <th style={{ textAlign: "right" }}>Precio</th>
+      <th style={{ textAlign: "right" }}>Cant.</th>
+      <th style={{ textAlign: "right" }}>Total</th>
+      <th>Unidad</th>
+      <th>Acciones</th>
+    </tr>
+  </thead>
+  <tbody>
+    {summary.items?.length ? (
+      summary.items.map((it, i) => (
+        <tr key={`${it.productId}-${i}`}>
+          <td className={styles.productName}>{it.productName}</td>
+          <td>
+            <span className={styles.productCode}>{it.productCode}</span>
+          </td>
+          <td className={styles.priceCell} style={{ textAlign: "right" }}>{money(it.price)}</td>
+          <td style={{ textAlign: "right", fontWeight: 600 }}>{it.quantity}</td>
+          <td className={styles.priceCell} style={{ textAlign: "right" }}>{money(it.total)}</td>
+          <td>{it.unit || "—"}</td>
+          <td>
+            <button
+              className={`${styles.secondaryButton} ${styles.dangerButton}`}
+              onClick={() => deleteCartItem(it.productId)}
+              disabled={!!deleting[it.productId]}
+              title="Eliminar este producto del carrito"
+              style={{ padding: "6px 10px", fontSize: 12 }}
+            >
+              {deleting[it.productId] ? "Eliminando…" : "Eliminar"}
+            </button>
+          </td>
+        </tr>
+      ))
+    ) : (
+      <tr>
+        <td colSpan={7} style={{ textAlign: "center", padding: "2rem" }}>Carrito vacío</td>
+      </tr>
+    )}
+  </tbody>
+</table>
               </div>
 
               {/* Confirmación */}
-              <div style={{ marginTop: 12, display: "grid", gap: 10 }}>
-                <h4 style={{ margin: 0 }}>Confirmar y generar ticket</h4>
+              <div style={{ marginTop: "2rem" }}>
+                <h4 className={styles.sectionTitle}>💳 Confirmar y Generar Ticket</h4>
 
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 12 }}>
-                  <div style={{ display: "grid", gap: 6 }}>
-                    <label>Cliente (opcional)</label>
-                    <input placeholder="Maria Gonzalez" value={customerName} onChange={(e) => setCustomerName(e.target.value)} />
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "1rem" }}>
+                  <div>
+                    <label className={styles.label}>Cliente (opcional)</label>
+                    <input className={styles.input} placeholder="María González" value={customerName} onChange={(e) => setCustomerName(e.target.value)} />
                   </div>
 
-                  <div style={{ display: "grid", gap: 6 }}>
-                    <label>Método de pago</label>
-                    <select value={paymentMethod} onChange={(e) => setPaymentMethod(e.target.value as ConfirmBody["paymentMethod"])}>
-                      <option value="cash">Efectivo</option>
-                      <option value="card">Tarjeta</option>
-                      <option value="mixed">Mixto</option>
+                  <div>
+                    <label className={styles.label}>Método de Pago</label>
+                    <select className={styles.select} value={paymentMethod} onChange={(e) => setPaymentMethod(e.target.value as ConfirmBody["paymentMethod"])}>
+                      <option value="cash">💵 Efectivo</option>
+                      <option value="card">💳 Tarjeta</option>
+                      <option value="mixed">💰 Mixto</option>
                     </select>
                   </div>
                 </div>
 
-                <div style={{ display: "grid", gap: 6 }}>
-                  <label>Notas (opcional)</label>
-                  <textarea rows={2} placeholder="sin hielo" value={notes} onChange={(e) => setNotes(e.target.value)} />
+                <div style={{ marginTop: "1rem" }}>
+                  <label className={styles.label}>Notas (opcional)</label>
+                  <input className={styles.input} placeholder="sin hielo" value={notes} onChange={(e) => setNotes(e.target.value)} />
                 </div>
 
                 {confirmMsg && !confirmErr && (
-                  <div style={{ border: "1px solid #bbf7d0", background: "#ecfdf5", color: "#065f46", padding: 10, borderRadius: 10 }}>
-                    {confirmMsg}
+                  <div className={styles.alertSuccess} style={{ marginTop: "1rem" }}>
+                    ✓ {confirmMsg}
                     {lastTicketId && (
-                      <div style={{ marginTop: 6 }}>
+                      <div style={{ marginTop: 8 }}>
                         Ticket ID:{" "}
-                        <Link href={`/tickets/${lastTicketId}`} style={{ textDecoration: "underline" }}>
+                        <Link href={`/tickets/${lastTicketId}`} style={{ textDecoration: "underline", fontWeight: 700 }}>
                           {lastTicketId}
                         </Link>
                       </div>
@@ -832,18 +821,18 @@ export default function BartenderCartPage() {
                   </div>
                 )}
                 {confirmErr && (
-                  <div style={{ border: "1px solid #fecaca", background: "#fee2e2", color: "#7f1d1d", padding: 10, borderRadius: 10 }}>
-                    {confirmErr}
+                  <div className={styles.alertError} style={{ marginTop: "1rem" }}>
+                    ✗ {confirmErr}
                   </div>
                 )}
 
-                <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                  <button className={btn.primary} onClick={confirmCart} disabled={confirming || !summary.items?.length} title="Confirmar carrito y generar ticket">
-                    {confirming ? "Generando…" : "Confirmar carrito"}
+                <div className={styles.buttonGroup}>
+                  <button className={styles.primaryButton} onClick={confirmCart} disabled={confirming || !summary.items?.length} title="Confirmar carrito y generar ticket">
+                    {confirming ? "⏳ Generando..." : "✅ Confirmar Carrito"}
                   </button>
 
                   <button
-                    className={btn.secondary}
+                    className={styles.secondaryButton}
                     onClick={() => {
                       setCustomerName("");
                       setNotes("");
@@ -852,40 +841,39 @@ export default function BartenderCartPage() {
                     disabled={confirming}
                     title="Limpiar campos de confirmación"
                   >
-                    Limpiar
+                    🔄 Limpiar
                   </button>
 
                   <button
-                    className={btn.secondary}
+                    className={`${styles.secondaryButton} ${styles.dangerButton}`}
                     onClick={clearCart}
                     disabled={clearing || !summary.items?.length}
                     title="Vaciar todo el carrito"
-                    style={{ borderColor: "#ef4444", color: "#ef4444" }}
                   >
-                    {clearing ? "Vaciando…" : "Vaciar carrito"}
+                    {clearing ? "⏳ Vaciando..." : "🗑️ Vaciar Carrito"}
                   </button>
 
                   {/* Reimprimir último ticket usando printFormat */}
                   <button
-                    className={btn.secondary}
+                    className={styles.secondaryButton}
                     onClick={() => {
                       if (lastPrintFormat) printFromFormat(lastPrintFormat);
                     }}
                     disabled={!lastPrintFormat}
                     title="Reimprimir último ticket"
                   >
-                    Reimprimir último ticket
+                    🖨️ Reimprimir
                   </button>
                 </div>
 
                 {clearMsg && !clearErr && (
-                  <div style={{ border: "1px solid #bbf7d0", background: "#ecfdf5", color: "#065f46", padding: 10, borderRadius: 10, marginTop: 8 }}>
-                    {clearMsg}
+                  <div className={styles.alertSuccess} style={{ marginTop: "1rem" }}>
+                    ✓ {clearMsg}
                   </div>
                 )}
                 {clearErr && (
-                  <div style={{ border: "1px solid #fecaca", background: "#fee2e2", color: "#7f1d1d", padding: 10, borderRadius: 10, marginTop: 8 }}>
-                    {clearErr}
+                  <div className={styles.alertError} style={{ marginTop: "1rem" }}>
+                    ✗ {clearErr}
                   </div>
                 )}
               </div>
@@ -900,19 +888,12 @@ export default function BartenderCartPage() {
 /* UI helpers */
 function Card({ title, value }: { title: string; value: string | number }) {
   return (
-    <div style={{ background: "#fff", border: "1px solid #e5e7eb", borderRadius: 12, padding: 14, display: "grid", gap: 6 }}>
-      <span style={{ color: "#6b7280", fontSize: 13, fontWeight: 600 }}>{title}</span>
-      <span style={{ fontSize: 22, fontWeight: 800 }}>{value ?? "—"}</span>
+    <div className={styles.statCard}>
+      <span className={styles.statLabel}>{title}</span>
+      <span className={styles.statValue}>{value ?? "—"}</span>
     </div>
   );
 }
-
-const Th: React.FC<React.ThHTMLAttributes<HTMLTableCellElement>> = (props) => (
-  <th {...props} style={{ textAlign: "left", padding: "8px 10px", borderBottom: "1px solid #e5e7eb", fontWeight: 700, ...(props.style || {}) }} />
-);
-const Td: React.FC<React.TdHTMLAttributes<HTMLTableCellElement>> = (props) => (
-  <td {...props} style={{ padding: "8px 10px", borderBottom: "1px solid #f3f4f6", ...(props.style || {}) }} />
-);
 
 /* 💰 Formateo de moneda con soporte de currency */
 function money(n?: number, currency?: string) {
