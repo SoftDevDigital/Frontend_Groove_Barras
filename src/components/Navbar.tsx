@@ -17,9 +17,7 @@ export default function Navbar() {
     const isOnlyBartender =
       hasRole(["bartender"]) &&
       !hasRole(["admin"]) &&
-      !hasRole(["owner"]) &&
-      !hasRole(["superadmin"]) &&
-      !hasRole(["manager"]);
+      !hasRole(["bar_user"]);
     setBartenderOnly(isOnlyBartender);
   }, []);
 
