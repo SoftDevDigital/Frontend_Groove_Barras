@@ -1,29 +1,78 @@
 .primary {
-  padding: 10px 14px;
-  border-radius: 8px;
+  padding: 10px 18px;
+  border-radius: var(--radius-md);
   border: none;
-  background: #111;
-  color: #fff;
+  background: var(--color-primary);
+  color: white;
   cursor: pointer;
-  font-weight: 600;
+  font-weight: 500;
+  font-size: 0.9375rem;
+  transition: all var(--transition-base);
+  box-shadow: var(--shadow-sm);
+  line-height: 1.5;
+}
+
+.primary:hover:not(:disabled) {
+  background: var(--color-primary-light);
+  box-shadow: var(--shadow-md);
+  transform: translateY(-1px);
+}
+
+.primary:active:not(:disabled) {
+  transform: translateY(0);
+  box-shadow: var(--shadow-sm);
 }
 
 .primary:disabled {
-  opacity: 0.6;
+  opacity: 0.5;
   cursor: not-allowed;
+  background: var(--color-gray-300);
+  color: var(--color-gray-500);
 }
 
 .secondary {
-  padding: 10px 14px;
-  border-radius: 8px;
-  border: 1px solid #111;
-  background: #fff;
-  color: #111;
+  padding: 10px 18px;
+  border-radius: var(--radius-md);
+  border: 1.5px solid var(--border-color);
+  background: var(--surface);
+  color: var(--text-primary);
   cursor: pointer;
-  font-weight: 600;
+  font-weight: 500;
+  font-size: 0.9375rem;
+  transition: all var(--transition-base);
+  box-shadow: var(--shadow-sm);
+  line-height: 1.5;
+}
+
+.secondary:hover:not(:disabled) {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+  background: var(--color-accent-lighter);
+  box-shadow: var(--shadow-md);
+  transform: translateY(-1px);
+}
+
+.secondary:active:not(:disabled) {
+  transform: translateY(0);
+  box-shadow: var(--shadow-sm);
+}
+
+.secondary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  border-color: var(--border-color);
+  color: var(--text-tertiary);
 }
 
 .link {
-  color: #1a73e8;
-  text-decoration: underline;
+  color: var(--color-accent);
+  text-decoration: none;
+  font-weight: 500;
+  transition: color var(--transition-base);
+  border-bottom: 1px solid transparent;
+}
+
+.link:hover {
+  color: var(--color-accent-light);
+  border-bottom-color: var(--color-accent-light);
 }

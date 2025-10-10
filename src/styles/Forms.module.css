@@ -3,30 +3,129 @@
   min-height: 100vh;
   align-items: center;
   justify-content: center;
-  padding: 24px;
-  background: #f9f9f9;
+  padding: var(--spacing-xl);
+  background: var(--background);
 }
 
 .form {
   width: 100%;
-  max-width: 420px;
+  max-width: 480px;
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  background: #fff;
-  border: 1px solid #eee;
-  border-radius: 12px;
-  padding: 20px;
+  gap: var(--spacing-lg);
+  background: var(--surface);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  padding: var(--spacing-2xl);
+  box-shadow: var(--shadow-lg);
+}
+
+.form label {
+  color: var(--text-primary);
+  font-weight: 500;
+  font-size: 0.9375rem;
+  margin-bottom: -8px;
 }
 
 .form input,
+.form select,
+.form textarea {
+  padding: 11px 14px;
+  border: 1.5px solid var(--border-color);
+  border-radius: var(--radius-md);
+  font-size: 0.9375rem;
+  color: var(--text-primary);
+  background: var(--surface);
+  transition: all var(--transition-base);
+  outline: none;
+  line-height: 1.5;
+}
+
+.form input:hover,
+.form select:hover,
+.form textarea:hover {
+  border-color: var(--border-color-hover);
+}
+
+.form input:focus,
+.form select:focus,
+.form textarea:focus {
+  border-color: var(--color-accent);
+  box-shadow: 0 0 0 3px var(--color-accent-lighter);
+}
+
+.form input:disabled,
+.form select:disabled,
+.form textarea:disabled {
+  background: var(--color-gray-50);
+  color: var(--text-tertiary);
+  cursor: not-allowed;
+}
+
+.form input::placeholder,
+.form textarea::placeholder {
+  color: var(--text-tertiary);
+}
+
 .form select {
-  padding: 10px;
-  border: 1px solid #ccc;
-  border-radius: 8px;
+  cursor: pointer;
+  background: linear-gradient(to bottom, #ffffff 0%, #fafbfc 100%);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 16 16'%3E%3Cpath fill='%232C3E50' d='M8 11L3 6h10z'/%3E%3C/svg%3E"),
+    linear-gradient(to bottom, #ffffff 0%, #fafbfc 100%);
+  background-repeat: no-repeat, repeat;
+  background-position: right 12px center, 0 0;
+  padding-right: 42px;
+  appearance: none;
+  font-weight: 500;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05), inset 0 1px 0 rgba(255, 255, 255, 0.8);
+}
+
+.form select:hover {
+  background: linear-gradient(to bottom, #ffffff 0%, #f5f6f8 100%);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 16 16'%3E%3Cpath fill='%235B7C99' d='M8 11L3 6h10z'/%3E%3C/svg%3E"),
+    linear-gradient(to bottom, #ffffff 0%, #f5f6f8 100%);
+  background-repeat: no-repeat, repeat;
+  background-position: right 12px center, 0 0;
+}
+
+.form select:focus {
+  background: #ffffff;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 16 16'%3E%3Cpath fill='%235B7C99' d='M8 11L3 6h10z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+}
+
+.form textarea {
+  min-height: 100px;
+  resize: vertical;
 }
 
 .error {
-  color: #c62828;
-  font-size: 0.9rem;
+  color: var(--color-error);
+  background: var(--color-error-light);
+  border: 1px solid var(--color-error);
+  padding: var(--spacing-md) var(--spacing-lg);
+  border-radius: var(--radius-md);
+  font-size: 0.9375rem;
+  line-height: 1.5;
+}
+
+.success {
+  color: var(--color-success);
+  background: var(--color-success-light);
+  border: 1px solid var(--color-success);
+  padding: var(--spacing-md) var(--spacing-lg);
+  border-radius: var(--radius-md);
+  font-size: 0.9375rem;
+  line-height: 1.5;
+}
+
+.info {
+  color: var(--color-info);
+  background: var(--color-info-light);
+  border: 1px solid var(--color-info);
+  padding: var(--spacing-md) var(--spacing-lg);
+  border-radius: var(--radius-md);
+  font-size: 0.9375rem;
+  line-height: 1.5;
 }

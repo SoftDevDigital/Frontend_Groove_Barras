@@ -2,7 +2,7 @@
 "use client";
 import Link from "next/link";
 import { getUser, logout, hasRole } from "@/lib/auth";
-import styles from "@/styles/Buttons.module.css";
+import styles from "./Navbar.module.css";
 import { useEffect, useState } from "react";
 
 export default function Navbar() {
@@ -22,23 +22,15 @@ export default function Navbar() {
   }, []);
 
   return (
-    <nav
-      style={{
-        display: "flex",
-        gap: 16,
-        alignItems: "center",
-        padding: "10px 16px",
-        borderBottom: "1px solid #eee",
-      }}
-    >
+    <nav className={styles.navbar}>
       {/* Si es SOLO bartender, mostramos únicamente Carrito */}
       {bartenderOnly ? (
         <>
-          <Link href="/bartender">Carrito</Link>
-          <div style={{ marginLeft: "auto", display: "flex", gap: 12, alignItems: "center" }}>
-            <span>{name}</span>
+          <Link href="/bartender" className={styles.navLink}>Carrito</Link>
+          <div className={styles.userSection}>
+            <span className={styles.userName}>{name}</span>
             <button
-              className={styles.primary}
+              className={styles.logoutButton}
               onClick={() => {
                 logout();
                 location.href = "/login";
@@ -51,31 +43,31 @@ export default function Navbar() {
       ) : (
         // Menú completo para admin y demás roles (incluye Carrito si corresponde)
         <>
-          <Link href="/dashboard">Dashboard</Link>
-          <Link href="/products">Productos</Link>
-          <Link href="/events">Eventos</Link>
-          <Link href="/bars">Barras</Link>
-          <Link href="/admin/users?role=admin">Usuarios</Link>
-          <Link href="/employees">Empleados</Link>
+          <Link href="/dashboard" className={styles.navLink}>Dashboard</Link>
+          <Link href="/products" className={styles.navLink}>Productos</Link>
+          <Link href="/events" className={styles.navLink}>Eventos</Link>
+          <Link href="/bars" className={styles.navLink}>Barras</Link>
+          <Link href="/admin/users?role=admin" className={styles.navLink}>Usuarios</Link>
+          <Link href="/employees" className={styles.navLink}>Empleados</Link>
 
           {/* Tickets para roles no restringidos */}
-          <Link href="/tickets">Tickets</Link>
+          <Link href="/tickets" className={styles.navLink}>Tickets</Link>
 
           {/* Solo admin */}
           {hasRole(["admin"]) && (
             <>
-              <Link href="/stock/assign">Stock</Link>
-              <Link href="/expenses">Gastos</Link>
+              <Link href="/stock/assign" className={styles.navLink}>Stock</Link>
+              <Link href="/expenses" className={styles.navLink}>Gastos</Link>
             </>
           )}
 
           {/* Carrito para bartender y/o admin */}
-          {hasRole(["bartender", "admin"]) && <Link href="/bartender">Carrito</Link>}
+          {hasRole(["bartender", "admin"]) && <Link href="/bartender" className={styles.navLink}>Carrito</Link>}
 
-          <div style={{ marginLeft: "auto", display: "flex", gap: 12, alignItems: "center" }}>
-            <span>{name}</span>
+          <div className={styles.userSection}>
+            <span className={styles.userName}>{name}</span>
             <button
-              className={styles.primary}
+              className={styles.logoutButton}
               onClick={() => {
                 logout();
                 location.href = "/login";
