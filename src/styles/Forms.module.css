@@ -1,17 +1,25 @@
+/* Layout base */
 .container {
   display: flex;
   min-height: 100vh;
   align-items: center;
   justify-content: center;
+<<<<<<< HEAD
   padding: var(--spacing-xl);
   background: var(--background);
+=======
+  padding: 24px;
+  background: #f6f7f9;
+>>>>>>> 33b30327f9fcbed4ef97ecc7e997af34b0cb70ce
 }
 
+/* La clave: forzar esquema claro para inputs, selects, etc. */
 .form {
   width: 100%;
   max-width: 480px;
   display: flex;
   flex-direction: column;
+<<<<<<< HEAD
   gap: var(--spacing-lg);
   background: var(--surface);
   border: 1px solid var(--border-color);
@@ -25,8 +33,32 @@
   font-weight: 500;
   font-size: 0.9375rem;
   margin-bottom: -8px;
+=======
+  gap: 10px;
+  background: #ffffff;
+  border: 1px solid #eee;
+  border-radius: 12px;
+  padding: 20px;
+  color-scheme: light;           /* <-- evita inputs oscuros en dark mode */
+>>>>>>> 33b30327f9fcbed4ef97ecc7e997af34b0cb70ce
 }
 
+/* Tipografía con alto contraste */
+.form h1 {
+  margin: 0 0 6px 0;
+  color: #111;                   /* contraste fuerte */
+  font-weight: 800;
+  font-size: 24px;
+  letter-spacing: -0.2px;
+}
+
+.form label {
+  color: #222;                   /* contraste con fondo blanco */
+  font-weight: 600;
+  font-size: 14px;
+}
+
+/* Campos */
 .form input,
 .form select,
 .form textarea {
@@ -68,6 +100,7 @@
 }
 
 .form select {
+<<<<<<< HEAD
   cursor: pointer;
   background: linear-gradient(to bottom, #ffffff 0%, #fafbfc 100%);
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 16 16'%3E%3Cpath fill='%232C3E50' d='M8 11L3 6h10z'/%3E%3C/svg%3E"),
@@ -98,9 +131,41 @@
 .form textarea {
   min-height: 100px;
   resize: vertical;
+=======
+  padding: 10px;
+  border: 1px solid #cfcfcf;
+  border-radius: 8px;
+  background: #fff;              /* asegura fondo claro */
+  color: #111;                   /* texto bien oscuro */
+  outline: none;
+>>>>>>> 33b30327f9fcbed4ef97ecc7e997af34b0cb70ce
 }
 
+.form input::placeholder,
+.form select::placeholder {
+  color: #6b7280;                /* gris legible */
+  opacity: 1;                    /* no atenuar */
+}
+
+.form input:focus,
+.form select:focus {
+  border-color: #a3bffa;         /* azul suave */
+  box-shadow: 0 0 0 3px rgba(163,191,250,0.35);
+}
+
+/* Arreglo para Chrome/Edge autofill en claro */
+.form input:-webkit-autofill,
+.form input:-webkit-autofill:hover,
+.form input:-webkit-autofill:focus,
+.form select:-webkit-autofill {
+  -webkit-text-fill-color: #111 !important;
+  box-shadow: 0 0 0px 1000px #fff inset !important;
+  transition: background-color 9999s ease-out 0s;
+}
+
+/* Mensajes */
 .error {
+<<<<<<< HEAD
   color: var(--color-error);
   background: var(--color-error-light);
   border: 1px solid var(--color-error);
@@ -128,4 +193,46 @@
   border-radius: var(--radius-md);
   font-size: 0.9375rem;
   line-height: 1.5;
+=======
+  color: #c62828;
+  font-size: 0.9rem;
+  margin: 4px 0 0 0;
+}
+
+/* ------ (lo demás de tu archivo original) ------ */
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 20px;
+  font-size: 14px;
+}
+
+.table th,
+.table td {
+  border: 1px solid #e5e5e5;
+  padding: 8px 12px;
+  text-align: left;
+}
+
+.table th {
+  background-color: #f8f8f8;
+  font-weight: 600;
+}
+
+.table tr:nth-child(even) {
+  background-color: #fafafa;
+}
+
+.table tr:hover {
+  background-color: #f1f1f1;
+}
+
+.table a {
+  color: #0070f3;
+  text-decoration: none;
+}
+
+.table a:hover {
+  text-decoration: underline;
+>>>>>>> 33b30327f9fcbed4ef97ecc7e997af34b0cb70ce
 }
