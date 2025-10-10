@@ -132,6 +132,14 @@ type ConfirmResponse = {
 };
 /* ================================================================== */
 
+/* ============== NUEVO: SPEC DELETE /bartender/cart/item ============== */
+type DeleteItemResponse = {
+  success: boolean;
+  message: string; // ej: "Coca Cola 500ml eliminado del carrito"
+  cartSummary: CartSummary;
+};
+/* ===================================================================== */
+
 type TicketItem = {
   productId: string;
   productName: string;
@@ -198,6 +206,11 @@ export default function BartenderCartPage() {
   const [clearing, setClearing] = useState(false);
   const [clearMsg, setClearMsg] = useState<string | null>(null);
   const [clearErr, setClearErr] = useState<string | null>(null);
+
+  // ========= NUEVO: estados para eliminación puntual de ítems
+  const [deleting, setDeleting] = useState<Record<string, boolean>>({});
+  const [delMsg, setDelMsg] = useState<string | null>(null);
+  const [delErr, setDelErr] = useState<string | null>(null);
 
   // Refs
   const inputRef = useRef<HTMLInputElement>(null);
@@ -508,6 +521,54 @@ export default function BartenderCartPage() {
     }
   }
 
+  /* ================= NUEVO: DELETE /bartender/cart/item ================= */
+  async function deleteCartItem(productId: string) {
+    setDelMsg(null);
+    setDelErr(null);
+
+    if (!hasRole(["bartender", "admin"])) {
+      setDelErr("No autorizado: requiere rol bartender o admin.");
+      return;
+    }
+    if (!productId) {
+      setDelErr("Falta productId.");
+      return;
+    }
+
+    try {
+      setDeleting((prev) => ({ ...prev, [productId]: true }));
+      const token = getToken();
+      const { data } = await api.delete<DeleteItemResponse>("/bartender/cart/item", {
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        // 👇 Axios permite body en delete via `data`
+        data: { productId },
+        validateStatus: (s) => s >= 200 && s < 300,
+      });
+
+      setSummary(data.cartSummary);
+      setDelMsg(data.message || "Ítem eliminado.");
+      // si quedó vacío, limpiamos meta visual básica
+      if (!data.cartSummary.items?.length) {
+        setProductInfo(null);
+      }
+    } catch (e: any) {
+      const sc = e?.response?.status;
+      if (sc === 404) setDelErr(e?.response?.data?.message || "Ítem no encontrado en el carrito.");
+      else if (sc === 400) setDelErr(e?.response?.data?.message || "Solicitud inválida.");
+      else setDelErr(e?.response?.data?.message || "Error al eliminar el ítem del carrito.");
+    } finally {
+      setDeleting((prev) => {
+        const cp = { ...prev };
+        delete cp[productId];
+        return cp;
+      });
+    }
+  }
+  /* ===================================================================== */
+
   function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     void sendInput();
@@ -654,6 +715,18 @@ export default function BartenderCartPage() {
             <h3 style={{ margin: 0 }}>Carrito</h3>
           </div>
 
+          {/* Mensajes de eliminación puntual */}
+          {delMsg && !delErr && (
+            <div style={{ border: "1px solid #bbf7d0", background: "#ecfdf5", color: "#065f46", padding: 10, borderRadius: 10 }}>
+              {delMsg}
+            </div>
+          )}
+          {delErr && (
+            <div style={{ border: "1px solid #fecaca", background: "#fee2e2", color: "#7f1d1d", padding: 10, borderRadius: 10 }}>
+              {delErr}
+            </div>
+          )}
+
           {!summary ? (
             <span style={{ color: "#6b7280" }}>Aún no hay ítems en el carrito.</span>
           ) : (
@@ -676,6 +749,8 @@ export default function BartenderCartPage() {
                       <Th style={{ textAlign: "right" }}>Cant.</Th>
                       <Th style={{ textAlign: "right" }}>Total</Th>
                       <Th>Unidad</Th>
+                      {/* ===== NUEVO: Acciones ===== */}
+                      <Th>Acciones</Th>
                     </tr>
                   </thead>
                   <tbody>
@@ -690,11 +765,28 @@ export default function BartenderCartPage() {
                           <Td style={{ textAlign: "right" }}>{it.quantity}</Td>
                           <Td style={{ textAlign: "right" }}>{money(it.total)}</Td>
                           <Td>{it.unit || "—"}</Td>
+                          {/* ===== NUEVO: Botón eliminar por ítem ===== */}
+                          <Td>
+                            <button
+                              className={btn.secondary}
+                              onClick={() => deleteCartItem(it.productId)}
+                              disabled={!!deleting[it.productId]}
+                              title="Eliminar este producto del carrito"
+                              style={{
+                                borderColor: "#ef4444",
+                                color: "#ef4444",
+                                padding: "6px 10px",
+                                fontSize: 12,
+                              }}
+                            >
+                              {deleting[it.productId] ? "Eliminando…" : "Eliminar"}
+                            </button>
+                          </Td>
                         </tr>
                       ))
                     ) : (
                       <tr>
-                        <Td colSpan={6}>Carrito vacío.</Td>
+                        <Td colSpan={7}>Carrito vacío.</Td>
                       </tr>
                     )}
                   </tbody>
