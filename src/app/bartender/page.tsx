@@ -798,6 +798,7 @@ export default function BartenderCartPage() {
                       <option value="cash">💵 Efectivo</option>
                       <option value="card">💳 Tarjeta</option>
                       <option value="mixed">💰 Administrador</option>
+                      <option value="mixed">💰 Puerta</option>
                     </select>
                   </div>
                 </div>
