@@ -71,7 +71,7 @@ type CartResponse = {
 type ConfirmBody = {
   barId: string; // OBLIGATORIO
   customerName?: string; // default backend: "Cliente"
-  paymentMethod?: "cash" | "card" | "mixed"; // default backend: "cash"
+  paymentMethod?: "cash" | "card" | "mixed" | "administrator" | "entradas"; // ← 🔹 AGREGADO "entradas"
   notes?: string;
 };
 
@@ -792,12 +792,21 @@ export default function BartenderCartPage() {
                     <input className={styles.input} placeholder="María González" value={customerName} onChange={(e) => setCustomerName(e.target.value)} />
                   </div>
 
-                  <div>
+                     <div>
                     <label className={styles.label}>Método de Pago</label>
-                    <select className={styles.select} value={paymentMethod} onChange={(e) => setPaymentMethod(e.target.value as ConfirmBody["paymentMethod"])}>
+                    <select
+                      className={styles.select}
+                      value={paymentMethod}
+                      onChange={(e) =>
+                        setPaymentMethod(e.target.value as ConfirmBody["paymentMethod"])
+                      }
+                    >
                       <option value="cash">💵 Efectivo</option>
-                      <option value="mixed">💰 Administrador</option>
-                      <option value="mixed">💰 Puerta</option>
+                      <option value="card">💳 Tarjeta</option>
+                      <option value="mixed">💱 Mixto</option>
+                      <option value="administrator">🧾 Administrador</option>
+                      {/* 🔹 NUEVO: método Entradas / Puertas */}
+                      <option value="entradas">🎟️ Entradas (puertas)</option>
                     </select>
                   </div>
                 </div>
@@ -959,7 +968,7 @@ function printFromFormat(fmt: PrintFormat) {
       ? Math.round(((fmt.totals?.tax || 0) * 100) / (fmt.totals!.subtotal))
       : 0;
 
-  const title = (fmt.header?.businessName || "GROOVE BAR SYSTEM").toUpperCase();
+  const title = (fmt.header?.businessName || "GROW BAR SYSTEM").toUpperCase();
   const addr  = fmt.header?.businessAddress || "";
   const phone = fmt.header?.businessPhone || "";
   const taxId = fmt.header?.businessTaxId || "";
@@ -1092,6 +1101,8 @@ function printFromFormat(fmt: PrintFormat) {
   if (iframe.contentDocument?.readyState === "complete") onLoad();
   else iframe.onload = onLoad;
 }
+
+
 /* ============================================================================================================ */
 
 /* ============================================================================================================ */

@@ -29,6 +29,54 @@ type SalesSummary = {
     revenue: number;
     percentage: number;
   }[];
+  // 🔹 productos segmentados por método de pago
+  productsSoldByPaymentMethod?: {
+    cash?: {
+      productId: string;
+      productName: string;
+      quantitySold: number;
+      revenue: number;
+      percentage: number;
+    }[];
+    card?: {
+      productId: string;
+      productName: string;
+      quantitySold: number;
+      revenue: number;
+      percentage: number;
+    }[];
+    mixed?: {
+      productId: string;
+      productName: string;
+      quantitySold: number;
+      revenue: number;
+      percentage: number;
+    }[];
+    administrator?: {
+      productId: string;
+      productName: string;
+      quantitySold: number;
+      revenue: number;
+      percentage: number;
+    }[];
+    // 🔹 NUEVO: productos pagados como "entradas" (puertas)
+    entradas?: {
+      productId: string;
+      productName: string;
+      quantitySold: number;
+      revenue: number;
+      percentage: number;
+    }[];
+    [k: string]:
+      | {
+          productId: string;
+          productName: string;
+          quantitySold: number;
+          revenue: number;
+          percentage: number;
+        }[]
+      | undefined;
+  };
   salesByUser: {
     userId: string;
     userName: string;
@@ -39,6 +87,9 @@ type SalesSummary = {
     cash?: number;
     card?: number;
     mixed?: number;
+    administrator?: number;
+    // 🔹 NUEVO: total asociado a "entradas" (puertas)
+    entradas?: number;
     [k: string]: number | undefined;
   };
   hourlyDistribution: {
@@ -103,6 +154,18 @@ export default function BarSalesSummaryPage() {
     return [...list].sort((a, b) => a.hour.localeCompare(b.hour));
   }, [data]);
 
+  // 🔹 productos pagados con método "Administrador"
+  const adminProducts = useMemo(() => {
+    const list = data?.productsSoldByPaymentMethod?.administrator ?? [];
+    return [...list].sort((a, b) => b.quantitySold - a.quantitySold);
+  }, [data]);
+
+  // 🔹 NUEVO: productos pagados como "Entradas" (puertas)
+  const entradasProducts = useMemo(() => {
+    const list = data?.productsSoldByPaymentMethod?.entradas ?? [];
+    return [...list].sort((a, b) => b.quantitySold - a.quantitySold);
+  }, [data]);
+
   return (
     <Guard roles={["admin"]}>
       <Navbar />
@@ -130,7 +193,15 @@ export default function BarSalesSummaryPage() {
         </div>
 
         {err && (
-          <div style={{ border: "1px solid #fecaca", background: "#fee2e2", color: "#7f1d1d", padding: 12, borderRadius: 12 }}>
+          <div
+            style={{
+              border: "1px solid #fecaca",
+              background: "#fee2e2",
+              color: "#7f1d1d",
+              padding: 12,
+              borderRadius: 12,
+            }}
+          >
             {err}
           </div>
         )}
@@ -170,7 +241,7 @@ export default function BarSalesSummaryPage() {
           )}
         </section>
 
-        {/* Productos vendidos */}
+        {/* Productos vendidos (general) */}
         <section style={cardSectionStyle}>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
             <strong style={cardTitle}>Productos vendidos</strong>
@@ -207,6 +278,74 @@ export default function BarSalesSummaryPage() {
             </div>
           )}
         </section>
+
+        {/* Productos consumidos por Administrador */}
+        {adminProducts.length > 0 && (
+          <section style={cardSectionStyle}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <strong style={cardTitle}>Productos consumidos por Administrador</strong>
+              <small style={{ color: "#6b7280" }}>
+                Detalle de productos pagados con método &quot;Administrador&quot;
+              </small>
+            </div>
+            <div style={{ overflowX: "auto" }}>
+              <table style={tableStyle}>
+                <thead>
+                  <tr>
+                    <Th>Producto</Th>
+                    <Th style={{ textAlign: "right" }}>Cantidad</Th>
+                    <Th style={{ textAlign: "right" }}>Ingresos</Th>
+                    <Th style={{ textAlign: "right" }}>% dentro de Administrador</Th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {adminProducts.map((p) => (
+                    <tr key={p.productId}>
+                      <Td>{p.productName}</Td>
+                      <Td style={{ textAlign: "right" }}>{p.quantitySold}</Td>
+                      <Td style={{ textAlign: "right" }}>{money(p.revenue)}</Td>
+                      <Td style={{ textAlign: "right" }}>{p.percentage.toFixed(1)}%</Td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </section>
+        )}
+
+        {/* 🔹 NUEVO: Entradas en puertas */}
+        {entradasProducts.length > 0 && (
+          <section style={cardSectionStyle}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <strong style={cardTitle}>Entradas en puertas</strong>
+              <small style={{ color: "#6b7280" }}>
+                Detalle de productos marcados como &quot;Entradas&quot; (puertas)
+              </small>
+            </div>
+            <div style={{ overflowX: "auto" }}>
+              <table style={tableStyle}>
+                <thead>
+                  <tr>
+                    <Th>Producto</Th>
+                    <Th style={{ textAlign: "right" }}>Cantidad</Th>
+                    <Th style={{ textAlign: "right" }}>Ingresos</Th>
+                    <Th style={{ textAlign: "right" }}>% dentro de Entradas</Th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {entradasProducts.map((p) => (
+                    <tr key={p.productId}>
+                      <Td>{p.productName}</Td>
+                      <Td style={{ textAlign: "right" }}>{p.quantitySold}</Td>
+                      <Td style={{ textAlign: "right" }}>{money(p.revenue)}</Td>
+                      <Td style={{ textAlign: "right" }}>{p.percentage.toFixed(1)}%</Td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </section>
+        )}
 
         {/* Ventas por bartender */}
         <section style={cardSectionStyle}>
@@ -310,7 +449,16 @@ export default function BarSalesSummaryPage() {
 /* ---------- UI helpers ---------- */
 function Kpi({ title, value }: { title: string; value: string | number }) {
   return (
-    <div style={{ background: "#fff", border: "1px solid #e5e7eb", borderRadius: 12, padding: 14, display: "grid", gap: 6 }}>
+    <div
+      style={{
+        background: "#fff",
+        border: "1px solid #e5e7eb",
+        borderRadius: 12,
+        padding: 14,
+        display: "grid",
+        gap: 6,
+      }}
+    >
       <span style={{ color: "#6b7280", fontSize: 13, fontWeight: 600 }}>{title}</span>
       <span style={{ fontSize: 22, fontWeight: 800 }}>{value ?? "—"}</span>
     </div>
@@ -318,7 +466,16 @@ function Kpi({ title, value }: { title: string; value: string | number }) {
 }
 function Card({ title, value }: { title: string; value: React.ReactNode }) {
   return (
-    <div style={{ background: "#fff", border: "1px solid #e5e7eb", borderRadius: 12, padding: 14, display: "grid", gap: 6 }}>
+    <div
+      style={{
+        background: "#fff",
+        border: "1px solid #e5e7eb",
+        borderRadius: 12,
+        padding: 14,
+        display: "grid",
+        gap: 6,
+      }}
+    >
       <span style={{ color: "#6b7280", fontSize: 13, fontWeight: 600 }}>{title}</span>
       <span style={{ fontSize: 16, fontWeight: 700 }}>{value ?? "—"}</span>
     </div>
@@ -365,6 +522,8 @@ function labelPayment(k: string) {
   if (k === "cash") return "Efectivo";
   if (k === "card") return "Tarjeta";
   if (k === "mixed") return "Mixto";
+  if (k === "administrator") return "Administrador";
+  if (k === "entradas") return "Entradas (puertas)";
   return k;
 }
 
