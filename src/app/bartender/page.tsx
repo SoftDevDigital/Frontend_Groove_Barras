@@ -797,7 +797,7 @@ export default function BartenderCartPage() {
                     <select className={styles.select} value={paymentMethod} onChange={(e) => setPaymentMethod(e.target.value as ConfirmBody["paymentMethod"])}>
                       <option value="cash">💵 Efectivo</option>
                       <option value="card">💳 Tarjeta</option>
-                      <option value="mixed">💰 Mixto</option>
+                      <option value="mixed">💰 Administrador</option>
                     </select>
                   </div>
                 </div>
