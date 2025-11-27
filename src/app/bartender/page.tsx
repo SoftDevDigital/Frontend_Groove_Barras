@@ -972,7 +972,8 @@ function printFromFormat(fmt: PrintFormat) {
   const addr  = fmt.header?.businessAddress || "";
   const phone = fmt.header?.businessPhone || "";
   const taxId = fmt.header?.businessTaxId || "";
-  const email = fmt.header?.businessEmail || "";
+  // 👇 dejamos de usar el email (ya no se imprime)
+  // const email = fmt.header?.businessEmail || "";
 
   const customerName =
     (fmt as any)?.ticket?.customerName || (fmt as any)?.customerName || "";
@@ -984,7 +985,7 @@ function printFromFormat(fmt: PrintFormat) {
     s = s.slice(0, COLS);
     const pad = Math.max(0, Math.floor((COLS - s.length) / 2));
     return " ".repeat(pad) + s + " ".repeat(Math.max(0, COLS - pad - s.length));
-    };
+  };
   const kv = (left: string, right: string) => {
     left = left || "";
     right = right || "";
@@ -1002,7 +1003,6 @@ function printFromFormat(fmt: PrintFormat) {
     return [
       name,
       kv(left, right),
-      // línea en blanco finito entre items (opcional)
     ];
   });
 
@@ -1015,7 +1015,8 @@ function printFromFormat(fmt: PrintFormat) {
   if (addr)  rows.push(clamp(addr));
   if (phone) rows.push(clamp(`Tel: ${phone}`));
   if (taxId) rows.push(clamp(`RUC: ${taxId}`));
-  if (email) rows.push(clamp(`Email: ${email}`));
+  // 👇 ESTA LÍNEA SE ELIMINA PARA QUE NO SALGA EL EMAIL
+  // if (email) rows.push(clamp(`Email: ${email}`));
   rows.push(""); // espacio
 
   rows.push(kv("Ticket:", fmt.ticket.ticketNumber));
@@ -1038,7 +1039,7 @@ function printFromFormat(fmt: PrintFormat) {
   rows.push(kv("Método de pago:", (fmt.payment.method || "").toUpperCase()));
   if (customerName) rows.push(kv("Cliente:", customerName));
   if ((fmt as any)?.notes) {
-    rows.push(""); 
+    rows.push("");
     rows.push(clamp(`Notas: ${(fmt as any).notes}`));
   }
   rows.push("");
@@ -1049,7 +1050,6 @@ function printFromFormat(fmt: PrintFormat) {
 
   const text = rows.join("\n");
 
-  // HTML minimalista: <pre> monoespaciado (sin flex), 100% determinístico
   const html = `
 <!DOCTYPE html>
 <html>
@@ -1069,7 +1069,7 @@ function printFromFormat(fmt: PrintFormat) {
     font-family: ${fontFamily};
     font-size: ${fontSize}px;
     line-height: 1.35;
-    white-space: pre;      /* ¡clave! no wraps raros */
+    white-space: pre;
     color:#111;
   }
 </style>
@@ -1079,7 +1079,6 @@ function printFromFormat(fmt: PrintFormat) {
 </body>
 </html>`;
 
-  // IFRAME oculto para imprimir
   const iframe = document.createElement("iframe");
   iframe.style.position = "fixed";
   iframe.style.right = "0";
