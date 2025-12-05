@@ -71,7 +71,13 @@ type CartResponse = {
 type ConfirmBody = {
   barId: string; // OBLIGATORIO
   customerName?: string; // default backend: "Cliente"
-  paymentMethod?: "cash" | "card" | "mixed" | "administrator" | "entradas"; // ← 🔹 AGREGADO "entradas"
+  paymentMethod?:
+    | "cash"
+    | "card"
+    | "mixed"
+    | "administrator"
+    | "entradas"
+    | "dj"; // 👈 AGREGADO "dj"
   notes?: string;
 };
 
@@ -175,7 +181,8 @@ export default function BartenderCartPage() {
   const [lastMsg, setLastMsg] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const [productInfo, setProductInfo] = useState<InputResponse["product"] | null>(null);
+  const [productInfo, setProductInfo] =
+    useState<InputResponse["product"] | null>(null);
   const [summary, setSummary] = useState<CartSummary | null>(null);
 
   /* GET /bartender/cart */
@@ -192,7 +199,8 @@ export default function BartenderCartPage() {
 
   /* Confirmación */
   const [customerName, setCustomerName] = useState<string>("");
-  const [paymentMethod, setPaymentMethod] = useState<ConfirmBody["paymentMethod"]>("cash");
+  const [paymentMethod, setPaymentMethod] =
+    useState<ConfirmBody["paymentMethod"]>("cash");
   const [notes, setNotes] = useState<string>("");
   const [confirming, setConfirming] = useState(false);
   const [confirmMsg, setConfirmMsg] = useState<string | null>(null);
@@ -200,7 +208,8 @@ export default function BartenderCartPage() {
   const [lastTicketId, setLastTicketId] = useState<string | null>(null);
 
   // guardar último printFormat para reimpresión
-  const [lastPrintFormat, setLastPrintFormat] = useState<PrintFormat | null>(null);
+  const [lastPrintFormat, setLastPrintFormat] =
+    useState<PrintFormat | null>(null);
 
   // Vaciar carrito (opcional)
   const [clearing, setClearing] = useState(false);
@@ -231,7 +240,7 @@ export default function BartenderCartPage() {
 
   /* ===== NUEVO: helpers de normalización ===== */
   function normalizeEvents(data: any): EventOption[] {
-    const arr = Array.isArray(data) ? data : (data?.items || data?.data || []);
+    const arr = Array.isArray(data) ? data : data?.items || data?.data || [];
     return (arr || [])
       .map((e: any) => ({
         id: e?.id ?? e?.eventId ?? e?.uuid ?? "",
@@ -242,7 +251,7 @@ export default function BartenderCartPage() {
   }
 
   function normalizeBars(data: any): BarOption[] {
-    const arr = Array.isArray(data) ? data : (data?.items || data?.data || []);
+    const arr = Array.isArray(data) ? data : data?.items || data?.data || [];
     return (arr || [])
       .map((b: any) => ({
         id: b?.id ?? b?.barId ?? b?.uuid ?? "",
@@ -273,7 +282,10 @@ export default function BartenderCartPage() {
       setEvents(list);
       if (eventId && !list.some((e) => e.id === eventId)) setEventId("");
     } catch (err: any) {
-      setEventsErr(err?.response?.data?.message || "No se pudieron cargar los eventos.");
+      setEventsErr(
+        err?.response?.data?.message ||
+          "No se pudieron cargar los eventos."
+      );
     } finally {
       setLoadingEvents(false);
     }
@@ -299,7 +311,10 @@ export default function BartenderCartPage() {
       setBars(list);
       if (barId && !list.some((b) => b.id === barId)) setBarId("");
     } catch (err: any) {
-      setBarsErr(err?.response?.data?.message || "No se pudieron cargar las barras del evento.");
+      setBarsErr(
+        err?.response?.data?.message ||
+          "No se pudieron cargar las barras del evento."
+      );
       setBars([]);
       setBarId("");
     } finally {
@@ -362,8 +377,12 @@ export default function BartenderCartPage() {
       });
     } catch (e: any) {
       const sc = e?.response?.status;
-      if (sc === 401 || sc === 403) setCartErr("No autorizado para obtener el carrito actual.");
-      else setCartErr(e?.response?.data?.message || "Error al obtener el carrito actual");
+      if (sc === 401 || sc === 403)
+        setCartErr("No autorizado para obtener el carrito actual.");
+      else
+        setCartErr(
+          e?.response?.data?.message || "Error al obtener el carrito actual"
+        );
     } finally {
       setLoadingCart(false);
     }
@@ -412,9 +431,17 @@ export default function BartenderCartPage() {
       setTimeout(() => inputRef.current?.focus(), 0);
     } catch (e: any) {
       const sc = e?.response?.status;
-      if (sc === 400) setError(e?.response?.data?.message || "Formato inválido o stock insuficiente");
-      else if (sc === 404) setError(e?.response?.data?.message || "Producto no encontrado");
-      else setError(e?.response?.data?.message || "Error al procesar la entrada");
+      if (sc === 400)
+        setError(
+          e?.response?.data?.message ||
+            "Formato inválido o stock insuficiente"
+        );
+      else if (sc === 404)
+        setError(e?.response?.data?.message || "Producto no encontrado");
+      else
+        setError(
+          e?.response?.data?.message || "Error al procesar la entrada"
+        );
     } finally {
       setSending(false);
     }
@@ -452,13 +479,17 @@ export default function BartenderCartPage() {
     try {
       setConfirming(true);
       const token = getToken();
-      const { data } = await api.post<ConfirmResponse>("/bartender/cart/confirm", body, {
-        headers: {
-          "Content-Type": "application/json",
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
-        validateStatus: (s) => s >= 200 && s < 300,
-      });
+      const { data } = await api.post<ConfirmResponse>(
+        "/bartender/cart/confirm",
+        body,
+        {
+          headers: {
+            "Content-Type": "application/json",
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
+          validateStatus: (s) => s >= 200 && s < 300,
+        }
+      );
 
       setConfirmMsg(data.message || "Ticket generado exitosamente.");
       setLastTicketId(data.ticketId || null);
@@ -477,9 +508,17 @@ export default function BartenderCartPage() {
       }
     } catch (e: any) {
       const sc = e?.response?.status;
-      if (sc === 400) setConfirmErr(e?.response?.data?.message || "Carrito vacío o stock insuficiente");
-      else if (sc === 401 || sc === 403) setConfirmErr("No autorizado para confirmar el carrito.");
-      else setConfirmErr(e?.response?.data?.message || "Error al confirmar el carrito");
+      if (sc === 400)
+        setConfirmErr(
+          e?.response?.data?.message ||
+            "Carrito vacío o stock insuficiente"
+        );
+      else if (sc === 401 || sc === 403)
+        setConfirmErr("No autorizado para confirmar el carrito.");
+      else
+        setConfirmErr(
+          e?.response?.data?.message || "Error al confirmar el carrito"
+        );
     } finally {
       setConfirming(false);
     }
@@ -503,19 +542,28 @@ export default function BartenderCartPage() {
     try {
       setClearing(true);
       const token = getToken();
-      const { data } = await api.delete<{ message?: string }>("/bartender/cart", {
-        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
-        validateStatus: (s) => s >= 200 && s < 300,
-      });
+      const { data } = await api.delete<{ message?: string }>(
+        "/bartender/cart",
+        {
+          headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+          validateStatus: (s) => s >= 200 && s < 300,
+        }
+      );
 
       setSummary(null);
       setProductInfo(null);
       setClearMsg(data?.message || "Carrito vaciado.");
-      setCartMeta((m) => (m ? { ...m, updatedAt: new Date().toISOString() } : m));
+      setCartMeta((m) =>
+        m ? { ...m, updatedAt: new Date().toISOString() } : m
+      );
     } catch (e: any) {
       const sc = e?.response?.status;
-      if (sc === 401 || sc === 403) setClearErr("No autorizado para limpiar el carrito.");
-      else setClearErr(e?.response?.data?.message || "Error al limpiar el carrito");
+      if (sc === 401 || sc === 403)
+        setClearErr("No autorizado para limpiar el carrito.");
+      else
+        setClearErr(
+          e?.response?.data?.message || "Error al limpiar el carrito"
+        );
     } finally {
       setClearing(false);
     }
@@ -538,15 +586,18 @@ export default function BartenderCartPage() {
     try {
       setDeleting((prev) => ({ ...prev, [productId]: true }));
       const token = getToken();
-      const { data } = await api.delete<DeleteItemResponse>("/bartender/cart/item", {
-        headers: {
-          "Content-Type": "application/json",
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
-        // 👇 Axios permite body en delete via `data`
-        data: { productId },
-        validateStatus: (s) => s >= 200 && s < 300,
-      });
+      const { data } = await api.delete<DeleteItemResponse>(
+        "/bartender/cart/item",
+        {
+          headers: {
+            "Content-Type": "application/json",
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
+          // 👇 Axios permite body en delete via `data`
+          data: { productId },
+          validateStatus: (s) => s >= 200 && s < 300,
+        }
+      );
 
       setSummary(data.cartSummary);
       setDelMsg(data.message || "Ítem eliminado.");
@@ -556,9 +607,17 @@ export default function BartenderCartPage() {
       }
     } catch (e: any) {
       const sc = e?.response?.status;
-      if (sc === 404) setDelErr(e?.response?.data?.message || "Ítem no encontrado en el carrito.");
-      else if (sc === 400) setDelErr(e?.response?.data?.message || "Solicitud inválida.");
-      else setDelErr(e?.response?.data?.message || "Error al eliminar el ítem del carrito.");
+      if (sc === 404)
+        setDelErr(
+          e?.response?.data?.message || "Ítem no encontrado en el carrito."
+        );
+      else if (sc === 400)
+        setDelErr(e?.response?.data?.message || "Solicitud inválida.");
+      else
+        setDelErr(
+          e?.response?.data?.message ||
+            "Error al eliminar el ítem del carrito."
+        );
     } finally {
       setDeleting((prev) => {
         const cp = { ...prev };
@@ -581,25 +640,35 @@ export default function BartenderCartPage() {
         <header className={styles.header}>
           <h1>🛒 Carrito</h1>
 
-          <button className={styles.secondaryButton} onClick={loadCart} disabled={loadingCart}>
-            {loadingCart ? "Cargando..." : summary ? "Refrescar" : "Cargar Carrito"}
+          <button
+            className={styles.secondaryButton}
+            onClick={loadCart}
+            disabled={loadingCart}
+          >
+            {loadingCart
+              ? "Cargando..."
+              : summary
+              ? "Refrescar"
+              : "Cargar Carrito"}
           </button>
         </header>
 
         {cartMeta && (
           <section className={styles.section}>
             <h3 className={styles.sectionTitle}>Información del Carrito</h3>
-            {cartErr && (
-              <div className={styles.alertError}>
-                {cartErr}
-              </div>
-            )}
+            {cartErr && <div className={styles.alertError}>{cartErr}</div>}
             <div className={styles.statsGrid}>
               <Card title="Cart ID" value={cartMeta.id || "—"} />
-              <Card title="Bartender" value={cartMeta.bartenderName || cartMeta.bartenderId || "—"} />
+              <Card
+                title="Bartender"
+                value={cartMeta.bartenderName || cartMeta.bartenderId || "—"}
+              />
               <Card title="Evento" value={cartMeta.eventId || "—"} />
               <Card title="Creado" value={formatDate(cartMeta.createdAt)} />
-              <Card title="Actualizado" value={formatDate(cartMeta.updatedAt)} />
+              <Card
+                title="Actualizado"
+                value={formatDate(cartMeta.updatedAt)}
+              />
             </div>
           </section>
         )}
@@ -607,7 +676,7 @@ export default function BartenderCartPage() {
         {/* Entrada de datos base */}
         <section className={styles.section}>
           <h3 className={styles.sectionTitle}>Configuración</h3>
-          
+
           {/* ===== Evento (select) ===== */}
           <div>
             <label className={styles.label}>Evento</label>
@@ -618,7 +687,11 @@ export default function BartenderCartPage() {
               onChange={(e) => setEventId(e.target.value)}
               disabled={loadingEvents}
             >
-              <option value="">{loadingEvents ? "Cargando eventos..." : "⚡ Selecciona un evento"}</option>
+              <option value="">
+                {loadingEvents
+                  ? "Cargando eventos..."
+                  : "⚡ Selecciona un evento"}
+              </option>
               {events.map((ev) => (
                 <option key={ev.id} value={ev.id}>
                   {ev.name}
@@ -626,8 +699,19 @@ export default function BartenderCartPage() {
                 </option>
               ))}
             </select>
-            {eventsErr && <small className={styles.helperText} style={{ color: "var(--color-error)" }}>{eventsErr}</small>}
-            {!eventsErr && <small className={styles.helperText}>Asocia el carrito al evento en curso</small>}
+            {eventsErr && (
+              <small
+                className={styles.helperText}
+                style={{ color: "var(--color-error)" }}
+              >
+                {eventsErr}
+              </small>
+            )}
+            {!eventsErr && (
+              <small className={styles.helperText}>
+                Asocia el carrito al evento en curso
+              </small>
+            )}
           </div>
 
           {/* ===== Barra (select) ===== */}
@@ -643,16 +727,33 @@ export default function BartenderCartPage() {
               disabled={!eventId || loadingBars}
               required
             >
-              {!eventId && <option value="">🔒 Elige un evento primero</option>}
-              {eventId && <option value="">{loadingBars ? "Cargando barras..." : "🍺 Selecciona una barra"}</option>}
+              {!eventId && (
+                <option value="">🔒 Elige un evento primero</option>
+              )}
+              {eventId && (
+                <option value="">
+                  {loadingBars ? "Cargando barras..." : "🍺 Selecciona una barra"}
+                </option>
+              )}
               {bars.map((b) => (
                 <option key={b.id} value={b.id}>
                   {b.name}
                 </option>
               ))}
             </select>
-            {barsErr && <small className={styles.helperText} style={{ color: "var(--color-error)" }}>{barsErr}</small>}
-            {!barsErr && <small className={styles.helperText}>Obligatorio para confirmar el carrito</small>}
+            {barsErr && (
+              <small
+                className={styles.helperText}
+                style={{ color: "var(--color-error)" }}
+              >
+                {barsErr}
+              </small>
+            )}
+            {!barsErr && (
+              <small className={styles.helperText}>
+                Obligatorio para confirmar el carrito
+              </small>
+            )}
           </div>
 
           {/* Entrada bartender */}
@@ -673,18 +774,28 @@ export default function BartenderCartPage() {
                 }}
                 style={{ flex: 1 }}
               />
-              <button className={styles.primaryButton} type="submit" disabled={sending}>
+              <button
+                className={styles.primaryButton}
+                type="submit"
+                disabled={sending}
+              >
                 {sending ? "⏳ Procesando" : "➕ Agregar"}
               </button>
             </div>
 
             {lastMsg && !error && (
-              <div className={styles.alertSuccess} style={{ marginTop: "1rem" }}>
+              <div
+                className={styles.alertSuccess}
+                style={{ marginTop: "1rem" }}
+              >
                 ✓ {lastMsg}
               </div>
             )}
             {error && (
-              <div className={styles.alertError} style={{ marginTop: "1rem" }}>
+              <div
+                className={styles.alertError}
+                style={{ marginTop: "1rem" }}
+              >
                 ✗ {error}
               </div>
             )}
@@ -711,18 +822,37 @@ export default function BartenderCartPage() {
 
           {/* Mensajes de eliminación puntual */}
           {delMsg && !delErr && (
-            <div style={{ border: "1px solid #bbf7d0", background: "#ecfdf5", color: "#065f46", padding: 10, borderRadius: 10 }}>
+            <div
+              style={{
+                border: "1px solid #bbf7d0",
+                background: "#ecfdf5",
+                color: "#065f46",
+                padding: 10,
+                borderRadius: 10,
+              }}
+            >
               {delMsg}
             </div>
           )}
           {delErr && (
-            <div style={{ border: "1px solid #fecaca", background: "#fee2e2", color: "#7f1d1d", padding: 10, borderRadius: 10 }}>
+            <div
+              style={{
+                border: "1px solid #fecaca",
+                background: "#fee2e2",
+                color: "#7f1d1d",
+                padding: 10,
+                borderRadius: 10,
+              }}
+            >
               {delErr}
             </div>
           )}
 
           {!summary ? (
-            <p className={styles.helperText} style={{ textAlign: "center", padding: "2rem" }}>
+            <p
+              className={styles.helperText}
+              style={{ textAlign: "center", padding: "2rem" }}
+            >
               El carrito está vacío. ¡Empieza a agregar productos!
             </p>
           ) : (
@@ -737,92 +867,167 @@ export default function BartenderCartPage() {
 
               <div style={{ overflowX: "auto" }}>
                 <table className={styles.cartTable}>
-  <thead>
-    <tr>
-      <th>Producto</th>
-      <th>Código</th>
-      <th style={{ textAlign: "right" }}>Precio</th>
-      <th style={{ textAlign: "right" }}>Cant.</th>
-      <th style={{ textAlign: "right" }}>Total</th>
-      <th>Unidad</th>
-      <th>Acciones</th>
-    </tr>
-  </thead>
-  <tbody>
-    {summary.items?.length ? (
-      summary.items.map((it, i) => (
-        <tr key={`${it.productId}-${i}`}>
-          <td className={styles.productName}>{it.productName}</td>
-          <td>
-            <span className={styles.productCode}>{it.productCode}</span>
-          </td>
-          <td className={styles.priceCell} style={{ textAlign: "right" }}>{money(it.price)}</td>
-          <td style={{ textAlign: "right", fontWeight: 600 }}>{it.quantity}</td>
-          <td className={styles.priceCell} style={{ textAlign: "right" }}>{money(it.total)}</td>
-          <td>{it.unit || "—"}</td>
-          <td>
-            <button
-              className={`${styles.secondaryButton} ${styles.dangerButton}`}
-              onClick={() => deleteCartItem(it.productId)}
-              disabled={!!deleting[it.productId]}
-              title="Eliminar este producto del carrito"
-              style={{ padding: "6px 10px", fontSize: 12 }}
-            >
-              {deleting[it.productId] ? "Eliminando…" : "Eliminar"}
-            </button>
-          </td>
-        </tr>
-      ))
-    ) : (
-      <tr>
-        <td colSpan={7} style={{ textAlign: "center", padding: "2rem" }}>Carrito vacío</td>
-      </tr>
-    )}
-  </tbody>
-</table>
+                  <thead>
+                    <tr>
+                      <th>Producto</th>
+                      <th>Código</th>
+                      <th style={{ textAlign: "right" }}>Precio</th>
+                      <th style={{ textAlign: "right" }}>Cant.</th>
+                      <th style={{ textAlign: "right" }}>Total</th>
+                      <th>Unidad</th>
+                      <th>Acciones</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {summary.items?.length ? (
+                      summary.items.map((it, i) => (
+                        <tr key={`${it.productId}-${i}`}>
+                          <td className={styles.productName}>
+                            {it.productName}
+                          </td>
+                          <td>
+                            <span className={styles.productCode}>
+                              {it.productCode}
+                            </span>
+                          </td>
+                          <td
+                            className={styles.priceCell}
+                            style={{ textAlign: "right" }}
+                          >
+                            {money(it.price)}
+                          </td>
+                          <td
+                            style={{
+                              textAlign: "right",
+                              fontWeight: 600,
+                            }}
+                          >
+                            {it.quantity}
+                          </td>
+                          <td
+                            className={styles.priceCell}
+                            style={{ textAlign: "right" }}
+                          >
+                            {money(it.total)}
+                          </td>
+                          <td>{it.unit || "—"}</td>
+                          <td>
+                            <button
+                              className={`${styles.secondaryButton} ${styles.dangerButton}`}
+                              onClick={() => deleteCartItem(it.productId)}
+                              disabled={!!deleting[it.productId]}
+                              title="Eliminar este producto del carrito"
+                              style={{
+                                padding: "6px 10px",
+                                fontSize: 12,
+                              }}
+                            >
+                              {deleting[it.productId]
+                                ? "Eliminando…"
+                                : "Eliminar"}
+                            </button>
+                          </td>
+                        </tr>
+                      ))
+                    ) : (
+                      <tr>
+                        <td
+                          colSpan={7}
+                          style={{
+                            textAlign: "center",
+                            padding: "2rem",
+                          }}
+                        >
+                          Carrito vacío
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
               </div>
 
               {/* Confirmación */}
               <div style={{ marginTop: "2rem" }}>
-                <h4 className={styles.sectionTitle}>💳 Confirmar y Generar Ticket</h4>
+                <h4 className={styles.sectionTitle}>
+                  💳 Confirmar y Generar Ticket
+                </h4>
 
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "1rem" }}>
+                <div
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns:
+                      "repeat(auto-fit, minmax(220px, 1fr))",
+                    gap: "1rem",
+                  }}
+                >
                   <div>
-                    <label className={styles.label}>Cliente (opcional)</label>
-                    <input className={styles.input} placeholder="María González" value={customerName} onChange={(e) => setCustomerName(e.target.value)} />
+                    <label className={styles.label}>
+                      Cliente (opcional)
+                    </label>
+                    <input
+                      className={styles.input}
+                      placeholder="María González"
+                      value={customerName}
+                      onChange={(e) =>
+                        setCustomerName(e.target.value)
+                      }
+                    />
                   </div>
 
-                     <div>
-                    <label className={styles.label}>Método de Pago</label>
+                  <div>
+                    <label className={styles.label}>
+                      Método de Pago
+                    </label>
                     <select
                       className={styles.select}
                       value={paymentMethod}
                       onChange={(e) =>
-                        setPaymentMethod(e.target.value as ConfirmBody["paymentMethod"])
+                        setPaymentMethod(
+                          e.target.value as ConfirmBody["paymentMethod"]
+                        )
                       }
                     >
                       <option value="cash">💵 Efectivo</option>
-                      <option value="card">💳 Tarjeta</option>
-                      <option value="mixed">💱 Mixto</option>
-                      <option value="administrator">🧾 Administrador</option>
+                      
+                      <option value="administrator">
+                        🧾 Administrador
+                      </option>
+                      {/* 🔹 NUEVO: método DJ */}
+                      <option value="dj">🎧 DJ</option>
                       {/* 🔹 NUEVO: método Entradas / Puertas */}
-                      <option value="entradas">🎟️ Entradas (puertas)</option>
+                     
                     </select>
                   </div>
                 </div>
 
                 <div style={{ marginTop: "1rem" }}>
-                  <label className={styles.label}>Notas (opcional)</label>
-                  <input className={styles.input} placeholder="sin hielo" value={notes} onChange={(e) => setNotes(e.target.value)} />
+                  <label className={styles.label}>
+                    Notas (opcional)
+                  </label>
+                  <input
+                    className={styles.input}
+                    placeholder="sin hielo"
+                    value={notes}
+                    onChange={(e) => setNotes(e.target.value)}
+                  />
                 </div>
 
                 {confirmMsg && !confirmErr && (
-                  <div className={styles.alertSuccess} style={{ marginTop: "1rem" }}>
+                  <div
+                    className={styles.alertSuccess}
+                    style={{ marginTop: "1rem" }}
+                  >
                     ✓ {confirmMsg}
                     {lastTicketId && (
                       <div style={{ marginTop: 8 }}>
                         Ticket ID:{" "}
-                        <Link href={`/tickets/${lastTicketId}`} style={{ textDecoration: "underline", fontWeight: 700 }}>
+                        <Link
+                          href={`/tickets/${lastTicketId}`}
+                          style={{
+                            textDecoration: "underline",
+                            fontWeight: 700,
+                          }}
+                        >
                           {lastTicketId}
                         </Link>
                       </div>
@@ -830,14 +1035,26 @@ export default function BartenderCartPage() {
                   </div>
                 )}
                 {confirmErr && (
-                  <div className={styles.alertError} style={{ marginTop: "1rem" }}>
+                  <div
+                    className={styles.alertError}
+                    style={{ marginTop: "1rem" }}
+                  >
                     ✗ {confirmErr}
                   </div>
                 )}
 
                 <div className={styles.buttonGroup}>
-                  <button className={styles.primaryButton} onClick={confirmCart} disabled={confirming || !summary.items?.length} title="Confirmar carrito y generar ticket">
-                    {confirming ? "⏳ Generando..." : "✅ Confirmar Carrito"}
+                  <button
+                    className={styles.primaryButton}
+                    onClick={confirmCart}
+                    disabled={
+                      confirming || !summary.items?.length
+                    }
+                    title="Confirmar carrito y generar ticket"
+                  >
+                    {confirming
+                      ? "⏳ Generando..."
+                      : "✅ Confirmar Carrito"}
                   </button>
 
                   <button
@@ -856,17 +1073,22 @@ export default function BartenderCartPage() {
                   <button
                     className={`${styles.secondaryButton} ${styles.dangerButton}`}
                     onClick={clearCart}
-                    disabled={clearing || !summary.items?.length}
+                    disabled={
+                      clearing || !summary.items?.length
+                    }
                     title="Vaciar todo el carrito"
                   >
-                    {clearing ? "⏳ Vaciando..." : "🗑️ Vaciar Carrito"}
+                    {clearing
+                      ? "⏳ Vaciando..."
+                      : "🗑️ Vaciar Carrito"}
                   </button>
 
                   {/* Reimprimir último ticket usando printFormat */}
                   <button
                     className={styles.secondaryButton}
                     onClick={() => {
-                      if (lastPrintFormat) printFromFormat(lastPrintFormat);
+                      if (lastPrintFormat)
+                        printFromFormat(lastPrintFormat);
                     }}
                     disabled={!lastPrintFormat}
                     title="Reimprimir último ticket"
@@ -876,12 +1098,18 @@ export default function BartenderCartPage() {
                 </div>
 
                 {clearMsg && !clearErr && (
-                  <div className={styles.alertSuccess} style={{ marginTop: "1rem" }}>
+                  <div
+                    className={styles.alertSuccess}
+                    style={{ marginTop: "1rem" }}
+                  >
                     ✓ {clearMsg}
                   </div>
                 )}
                 {clearErr && (
-                  <div className={styles.alertError} style={{ marginTop: "1rem" }}>
+                  <div
+                    className={styles.alertError}
+                    style={{ marginTop: "1rem" }}
+                  >
                     ✗ {clearErr}
                   </div>
                 )}
@@ -923,15 +1151,15 @@ function formatDate(iso?: string) {
   if (!iso) return "—";
   try {
     const d = new Date(iso);
-    return `${d.toLocaleDateString()} ${d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`;
+    return `${d.toLocaleDateString()} ${d.toLocaleTimeString([], {
+      hour: "2-digit",
+      minute: "2-digit",
+    })}`;
   } catch {
     return String(iso);
   }
 }
 
-/* ======================= PRINT DESDE printFormat (58mm, sin popups) ======================= */
-/* ======================= PRINT DESDE printFormat (58mm, estilo similar al screenshot) ======================= */
-/* ======================= PRINT DESDE printFormat (58mm, estilo similar al screenshot) ======================= */
 /* ======================= PRINT DESDE printFormat (layout monoespaciado tipo térmica) ======================= */
 function printFromFormat(fmt: PrintFormat) {
   const paper = fmt.printerSettings?.paperWidth || 58; // 58 u 80
@@ -941,11 +1169,9 @@ function printFromFormat(fmt: PrintFormat) {
     "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace";
   const currency = fmt.totals?.currency || fmt.ticket?.currency || "ARS";
 
-  // columnas típicas (58mm ≈ 32, 80mm ≈ 48). Si usan letra muy chica en 58mm, podés subir a 42.
   const COLS =
     paper >= 80 ? 48 : fontSize <= 10 ? 42 : 32;
 
-  // 2 decimales siempre en el papel
   const money2 = (n?: number) => {
     if (typeof n !== "number" || Number.isNaN(n)) return "—";
     try {
@@ -960,69 +1186,72 @@ function printFromFormat(fmt: PrintFormat) {
     }
   };
 
-  // IVA: si no hay rate por item, lo infiero con subtotal/tax
-  const ivaRate =
-    Number.isFinite((fmt.items?.[0] as any)?.taxRate)
-      ? Math.max(0, Number((fmt.items![0] as any).taxRate))
-      : (fmt.totals?.subtotal || 0) > 0
-      ? Math.round(((fmt.totals?.tax || 0) * 100) / (fmt.totals!.subtotal))
-      : 0;
+  const ivaRate = Number.isFinite((fmt.items?.[0] as any)?.taxRate)
+    ? Math.max(0, Number((fmt.items![0] as any).taxRate))
+    : (fmt.totals?.subtotal || 0) > 0
+    ? Math.round(((fmt.totals?.tax || 0) * 100) / fmt.totals!.subtotal)
+    : 0;
 
   const title = (fmt.header?.businessName || "GROW BAR SYSTEM").toUpperCase();
-  const addr  = fmt.header?.businessAddress || "";
+  const addr = fmt.header?.businessAddress || "";
   const phone = fmt.header?.businessPhone || "";
   const taxId = fmt.header?.businessTaxId || "";
-  // 👇 dejamos de usar el email (ya no se imprime)
-  // const email = fmt.header?.businessEmail || "";
-
   const customerName =
-    (fmt as any)?.ticket?.customerName || (fmt as any)?.customerName || "";
+    (fmt as any)?.ticket?.customerName ||
+    (fmt as any)?.customerName ||
+    "";
 
-  // helpers de alineación en columnas
   const line = (ch = "-") => ch.repeat(COLS);
-  const clamp = (s: string) => (s.length > COLS ? s.slice(0, COLS) : s);
+  const clamp = (s: string) =>
+    s.length > COLS ? s.slice(0, COLS) : s;
   const center = (s: string) => {
     s = s.slice(0, COLS);
     const pad = Math.max(0, Math.floor((COLS - s.length) / 2));
-    return " ".repeat(pad) + s + " ".repeat(Math.max(0, COLS - pad - s.length));
+    return (
+      " ".repeat(pad) +
+      s +
+      " ".repeat(Math.max(0, COLS - pad - s.length))
+    );
   };
   const kv = (left: string, right: string) => {
     left = left || "";
     right = right || "";
     const maxLeft = Math.max(0, COLS - right.length);
-    const L = left.length > maxLeft ? left.slice(0, maxLeft) : left;
-    return L + " ".repeat(Math.max(0, COLS - (L.length + right.length))) + right;
+    const L =
+      left.length > maxLeft ? left.slice(0, maxLeft) : left;
+    return (
+      L +
+      " ".repeat(Math.max(0, COLS - (L.length + right.length))) +
+      right
+    );
   };
   const twoCols = (a: string, b: string) => kv(a, b);
 
-  // Renglón de item: nombre en una línea, debajo "Q x $Unit .... $SubTotal"
   const itemLines = (fmt.items || []).flatMap((it) => {
     const name = clamp(String(it.name || ""));
     const left = `${it.quantity} x ${money2(it.unitPrice)}`;
     const right = money2(it.subtotal);
-    return [
-      name,
-      kv(left, right),
-    ];
+    return [name, kv(left, right)];
   });
 
-  // Construcción del contenido en texto plano
   const rows: string[] = [];
 
   rows.push(line());
   rows.push(center(title));
   rows.push(line());
-  if (addr)  rows.push(clamp(addr));
+  if (addr) rows.push(clamp(addr));
   if (phone) rows.push(clamp(`Tel: ${phone}`));
   if (taxId) rows.push(clamp(`RUC: ${taxId}`));
-  // 👇 ESTA LÍNEA SE ELIMINA PARA QUE NO SALGA EL EMAIL
-  // if (email) rows.push(clamp(`Email: ${email}`));
-  rows.push(""); // espacio
+  rows.push("");
 
   rows.push(kv("Ticket:", fmt.ticket.ticketNumber));
-  rows.push(kv("Fecha:", `${fmt.ticket.date}   Hora: ${fmt.ticket.time}`));
-  if (fmt.ticket.eventName) rows.push(kv("Evento:", fmt.ticket.eventName));
-  if (fmt.ticket.barName)   rows.push(kv("Barra:", fmt.ticket.barName));
+  rows.push(
+    kv("Fecha:", `${fmt.ticket.date}   Hora: ${fmt.ticket.time}`)
+  );
+  if (fmt.ticket.eventName)
+    rows.push(kv("Evento:", fmt.ticket.eventName));
+  if (fmt.ticket.barName)
+    rows.push(kv("Barra:", fmt.ticket.barName));
   rows.push(kv("Atendido por:", fmt.ticket.userName));
   rows.push("PRODUCTOS");
   rows.push(line());
@@ -1034,18 +1263,29 @@ function printFromFormat(fmt: PrintFormat) {
   rows.push(twoCols(`IVA (${ivaRate}%)`, money2(fmt.totals.tax)));
   rows.push(line());
   rows.push(twoCols("TOTAL:", money2(fmt.totals.total)));
-  rows.push(""); // espacio
+  rows.push("");
 
-  rows.push(kv("Método de pago:", (fmt.payment.method || "").toUpperCase()));
+  rows.push(
+    kv(
+      "Método de pago:",
+      (fmt.payment.method || "").toUpperCase()
+    )
+  );
   if (customerName) rows.push(kv("Cliente:", customerName));
   if ((fmt as any)?.notes) {
     rows.push("");
     rows.push(clamp(`Notas: ${(fmt as any).notes}`));
   }
   rows.push("");
-  rows.push(fmt.footer?.thankYouMessage ? clamp(fmt.footer.thankYouMessage) : "¡Gracias por su compra!");
-  if (fmt.footer?.businessWebsite) rows.push(clamp(fmt.footer.businessWebsite));
-  if (fmt.footer?.receiptFooter)   rows.push(clamp(fmt.footer.receiptFooter));
+  rows.push(
+    fmt.footer?.thankYouMessage
+      ? clamp(fmt.footer.thankYouMessage)
+      : "¡Gracias por su compra!"
+  );
+  if (fmt.footer?.businessWebsite)
+    rows.push(clamp(fmt.footer.businessWebsite));
+  if (fmt.footer?.receiptFooter)
+    rows.push(clamp(fmt.footer.receiptFooter));
   rows.push(line());
 
   const text = rows.join("\n");
@@ -1089,26 +1329,29 @@ function printFromFormat(fmt: PrintFormat) {
   document.body.appendChild(iframe);
 
   const onLoad = () => {
-    try { iframe.contentWindow?.focus(); } catch {}
-    try { iframe.contentWindow?.print(); } catch {}
-    setTimeout(() => { try { iframe.remove(); } catch {} }, 1000);
+    try {
+      iframe.contentWindow?.focus();
+    } catch {}
+    try {
+      iframe.contentWindow?.print();
+    } catch {}
+    setTimeout(() => {
+      try {
+        iframe.remove();
+      } catch {}
+    }, 1000);
   };
 
-  const doc = iframe.contentDocument || iframe.contentWindow?.document;
+  const doc =
+    iframe.contentDocument || iframe.contentWindow?.document;
   if (!doc) return;
-  doc.open(); doc.write(html); doc.close();
-  if (iframe.contentDocument?.readyState === "complete") onLoad();
+  doc.open();
+  doc.write(html);
+  doc.close();
+  if (iframe.contentDocument?.readyState === "complete")
+    onLoad();
   else iframe.onload = onLoad;
 }
-
-
-/* ============================================================================================================ */
-
-/* ============================================================================================================ */
-
-/* ============================================================================================================ */
-
-/* ========================================================================================= */
 
 function escapeHtml(s?: string | number) {
   if (s === undefined || s === null) return "";

@@ -67,6 +67,14 @@ type SalesSummary = {
       revenue: number;
       percentage: number;
     }[];
+    // 🔹 NUEVO: productos asociados al método "dj"
+    dj?: {
+      productId: string;
+      productName: string;
+      quantitySold: number;
+      revenue: number;
+      percentage: number;
+    }[];
     [k: string]:
       | {
           productId: string;
@@ -90,6 +98,8 @@ type SalesSummary = {
     administrator?: number;
     // 🔹 NUEVO: total asociado a "entradas" (puertas)
     entradas?: number;
+    // 🔹 NUEVO: total asociado a "dj"
+    dj?: number;
     [k: string]: number | undefined;
   };
   hourlyDistribution: {
@@ -157,6 +167,12 @@ export default function BarSalesSummaryPage() {
   // 🔹 productos pagados con método "Administrador"
   const adminProducts = useMemo(() => {
     const list = data?.productsSoldByPaymentMethod?.administrator ?? [];
+    return [...list].sort((a, b) => b.quantitySold - a.quantitySold);
+  }, [data]);
+
+  // 🔹 NUEVO: productos pagados con método "DJ"
+  const djProducts = useMemo(() => {
+    const list = data?.productsSoldByPaymentMethod?.dj ?? [];
     return [...list].sort((a, b) => b.quantitySold - a.quantitySold);
   }, [data]);
 
@@ -300,6 +316,40 @@ export default function BarSalesSummaryPage() {
                 </thead>
                 <tbody>
                   {adminProducts.map((p) => (
+                    <tr key={p.productId}>
+                      <Td>{p.productName}</Td>
+                      <Td style={{ textAlign: "right" }}>{p.quantitySold}</Td>
+                      <Td style={{ textAlign: "right" }}>{money(p.revenue)}</Td>
+                      <Td style={{ textAlign: "right" }}>{p.percentage.toFixed(1)}%</Td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </section>
+        )}
+
+        {/* 🔹 NUEVO: Productos consumidos por DJ */}
+        {djProducts.length > 0 && (
+          <section style={cardSectionStyle}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <strong style={cardTitle}>Productos consumidos por DJ</strong>
+              <small style={{ color: "#6b7280" }}>
+                Detalle de productos pagados con método &quot;DJ&quot; (gastos del DJ)
+              </small>
+            </div>
+            <div style={{ overflowX: "auto" }}>
+              <table style={tableStyle}>
+                <thead>
+                  <tr>
+                    <Th>Producto</Th>
+                    <Th style={{ textAlign: "right" }}>Cantidad</Th>
+                    <Th style={{ textAlign: "right" }}>Ingresos</Th>
+                    <Th style={{ textAlign: "right" }}>% dentro de DJ</Th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {djProducts.map((p) => (
                     <tr key={p.productId}>
                       <Td>{p.productName}</Td>
                       <Td style={{ textAlign: "right" }}>{p.quantitySold}</Td>
@@ -524,6 +574,7 @@ function labelPayment(k: string) {
   if (k === "mixed") return "Mixto";
   if (k === "administrator") return "Administrador";
   if (k === "entradas") return "Entradas (puertas)";
+  if (k === "dj") return "DJ"; // 🔹 NUEVO label para método DJ
   return k;
 }
 
