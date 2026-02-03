@@ -1,4 +1,3 @@
-// src/app/bartender/page.tsx
 "use client";
 
 import { useEffect, useRef, useState } from "react";
@@ -41,7 +40,6 @@ type InputResponse = {
   cartSummary: CartSummary;
 };
 
-/* 👇 GET /bartender/cart (soporta respuesta simple y extendida) */
 type CartResponse = {
   totalItems: number;
   totalQuantity: number;
@@ -57,8 +55,6 @@ type CartResponse = {
     total: number;
     unit?: string;
   }[];
-
-  // opcionales
   id?: string;
   bartenderId?: string;
   bartenderName?: string;
@@ -67,17 +63,17 @@ type CartResponse = {
   updatedAt?: string;
 };
 
-/* ======================== NUEVO SEGÚN SPEC ======================== */
 type ConfirmBody = {
-  barId: string; // OBLIGATORIO
-  customerName?: string; // default backend: "Cliente"
+  barId: string;
+  customerName?: string;
   paymentMethod?:
     | "cash"
     | "card"
     | "mixed"
+    | "transfer"
     | "administrator"
     | "entradas"
-    | "dj"; // 👈 AGREGADO "dj"
+    | "dj";
   notes?: string;
 };
 
@@ -94,9 +90,9 @@ type PrintFormat = {
     userName: string;
     barName: string;
     eventName: string;
-    date: string; // "DD/MM/YYYY"
-    time: string; // "HH:mm"
-    currency: string; // p.ej. "ARS" o "USD"
+    date: string;
+    time: string;
+    currency: string;
   };
   items: {
     name: string;
@@ -113,7 +109,7 @@ type PrintFormat = {
     currency: string;
   };
   payment: {
-    method: string; // "EFECTIVO" | "TARJETA" | "MIXTO"
+    method: string;
     paidAmount: number;
     changeAmount: number;
     currency: string;
@@ -124,7 +120,7 @@ type PrintFormat = {
     receiptFooter: string;
   };
   printerSettings: {
-    paperWidth: number; // 58 u 80
+    paperWidth: number;
     fontSize: number;
     fontFamily: string;
   };
@@ -136,15 +132,12 @@ type ConfirmResponse = {
   message: string;
   printFormat: PrintFormat;
 };
-/* ================================================================== */
 
-/* ============== NUEVO: SPEC DELETE /bartender/cart/item ============== */
 type DeleteItemResponse = {
   success: boolean;
-  message: string; // ej: "Coca Cola 500ml eliminado del carrito"
+  message: string;
   cartSummary: CartSummary;
 };
-/* ===================================================================== */
 
 type TicketItem = {
   productId: string;
@@ -153,6 +146,7 @@ type TicketItem = {
   price: number;
   total: number;
 };
+
 type TicketDTO = {
   id: string;
   eventId: string;
@@ -168,24 +162,52 @@ type TicketDTO = {
   createdAt: string;
 };
 
-/* ========= NUEVO: Tipos para selects ========= */
 type EventOption = { id: string; name: string; date?: string };
 type BarOption = { id: string; name: string; eventId?: string };
 
+/* ================= helpers nuevos ================= */
+function sleep(ms: number) {
+  return new Promise((r) => setTimeout(r, ms));
+}
+
+/**
+ * ✅ Espera a que el ticket realmente exista en backend antes de imprimir.
+ * Cambiá la URL si tu backend usa otro path.
+ */
+async function waitForTicketPersisted(ticketId: string, token?: string) {
+  const tries = 3;
+  for (let i = 0; i < tries; i++) {
+    try {
+      await api.get<TicketDTO>(`/tickets/${encodeURIComponent(ticketId)}`, {
+        headers: {
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          "Cache-Control": "no-cache",
+          Pragma: "no-cache",
+        },
+        params: { _ts: Date.now() },
+        validateStatus: (s) => s >= 200 && s < 300,
+      });
+      return true;
+    } catch {
+      await sleep(300);
+    }
+  }
+  return false;
+}
+/* ================================================== */
+
 export default function BartenderCartPage() {
   const [eventId, setEventId] = useState<string>("");
-  const [barId, setBarId] = useState<string>(""); // 👈 OBLIGATORIO PARA CONFIRMAR
+  const [barId, setBarId] = useState<string>("");
   const [input, setInput] = useState<string>("");
   const [sending, setSending] = useState(false);
 
   const [lastMsg, setLastMsg] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const [productInfo, setProductInfo] =
-    useState<InputResponse["product"] | null>(null);
+  const [productInfo, setProductInfo] = useState<InputResponse["product"] | null>(null);
   const [summary, setSummary] = useState<CartSummary | null>(null);
 
-  /* GET /bartender/cart */
   const [cartMeta, setCartMeta] = useState<{
     id?: string;
     bartenderName?: string;
@@ -194,39 +216,32 @@ export default function BartenderCartPage() {
     createdAt?: string;
     updatedAt?: string;
   } | null>(null);
+
   const [loadingCart, setLoadingCart] = useState(false);
   const [cartErr, setCartErr] = useState<string | null>(null);
 
-  /* Confirmación */
   const [customerName, setCustomerName] = useState<string>("");
-  const [paymentMethod, setPaymentMethod] =
-    useState<ConfirmBody["paymentMethod"]>("cash");
+  const [paymentMethod, setPaymentMethod] = useState<ConfirmBody["paymentMethod"]>("cash");
   const [notes, setNotes] = useState<string>("");
   const [confirming, setConfirming] = useState(false);
   const [confirmMsg, setConfirmMsg] = useState<string | null>(null);
   const [confirmErr, setConfirmErr] = useState<string | null>(null);
   const [lastTicketId, setLastTicketId] = useState<string | null>(null);
 
-  // guardar último printFormat para reimpresión
-  const [lastPrintFormat, setLastPrintFormat] =
-    useState<PrintFormat | null>(null);
+  const [lastPrintFormat, setLastPrintFormat] = useState<PrintFormat | null>(null);
 
-  // Vaciar carrito (opcional)
   const [clearing, setClearing] = useState(false);
   const [clearMsg, setClearMsg] = useState<string | null>(null);
   const [clearErr, setClearErr] = useState<string | null>(null);
 
-  // ========= NUEVO: estados para eliminación puntual de ítems
   const [deleting, setDeleting] = useState<Record<string, boolean>>({});
   const [delMsg, setDelMsg] = useState<string | null>(null);
   const [delErr, setDelErr] = useState<string | null>(null);
 
-  // Refs
   const inputRef = useRef<HTMLInputElement>(null);
   const eventRef = useRef<HTMLSelectElement>(null);
   const barRef = useRef<HTMLSelectElement>(null);
 
-  // ========= NUEVO: estado de selects
   const [events, setEvents] = useState<EventOption[]>([]);
   const [bars, setBars] = useState<BarOption[]>([]);
   const [loadingEvents, setLoadingEvents] = useState(false);
@@ -238,7 +253,6 @@ export default function BartenderCartPage() {
     setTimeout(() => inputRef.current?.focus(), 50);
   }, []);
 
-  /* ===== NUEVO: helpers de normalización ===== */
   function normalizeEvents(data: any): EventOption[] {
     const arr = Array.isArray(data) ? data : data?.items || data?.data || [];
     return (arr || [])
@@ -261,18 +275,15 @@ export default function BartenderCartPage() {
       .filter((b: BarOption) => b.id);
   }
 
-  /* ===== NUEVO: fetch de eventos y barras ===== */
   async function fetchEvents() {
     setEventsErr(null);
     setLoadingEvents(true);
     try {
       const token = getToken();
-      // intento 1: activos
       let res = await api.get("/events?status=active", {
         headers: token ? { Authorization: `Bearer ${token}` } : undefined,
         validateStatus: () => true,
       });
-      // fallback: todos
       if (res.status >= 400) {
         res = await api.get("/events", {
           headers: token ? { Authorization: `Bearer ${token}` } : undefined,
@@ -282,10 +293,7 @@ export default function BartenderCartPage() {
       setEvents(list);
       if (eventId && !list.some((e) => e.id === eventId)) setEventId("");
     } catch (err: any) {
-      setEventsErr(
-        err?.response?.data?.message ||
-          "No se pudieron cargar los eventos."
-      );
+      setEventsErr(err?.response?.data?.message || "No se pudieron cargar los eventos.");
     } finally {
       setLoadingEvents(false);
     }
@@ -296,12 +304,10 @@ export default function BartenderCartPage() {
     setLoadingBars(true);
     try {
       const token = getToken();
-      // intento 1: query
       let res = await api.get(`/bars?eventId=${encodeURIComponent(evId)}`, {
         headers: token ? { Authorization: `Bearer ${token}` } : undefined,
         validateStatus: () => true,
       });
-      // fallback: nested
       if (res.status >= 400) {
         res = await api.get(`/events/${encodeURIComponent(evId)}/bars`, {
           headers: token ? { Authorization: `Bearer ${token}` } : undefined,
@@ -311,10 +317,7 @@ export default function BartenderCartPage() {
       setBars(list);
       if (barId && !list.some((b) => b.id === barId)) setBarId("");
     } catch (err: any) {
-      setBarsErr(
-        err?.response?.data?.message ||
-          "No se pudieron cargar las barras del evento."
-      );
+      setBarsErr(err?.response?.data?.message || "No se pudieron cargar las barras del evento.");
       setBars([]);
       setBarId("");
     } finally {
@@ -322,12 +325,10 @@ export default function BartenderCartPage() {
     }
   }
 
-  // Carga inicial de eventos
   useEffect(() => {
     void fetchEvents();
   }, []);
 
-  // Cuando cambia el evento, cargo sus barras
   useEffect(() => {
     if (eventId) void fetchBarsByEvent(eventId);
     else {
@@ -377,12 +378,8 @@ export default function BartenderCartPage() {
       });
     } catch (e: any) {
       const sc = e?.response?.status;
-      if (sc === 401 || sc === 403)
-        setCartErr("No autorizado para obtener el carrito actual.");
-      else
-        setCartErr(
-          e?.response?.data?.message || "Error al obtener el carrito actual"
-        );
+      if (sc === 401 || sc === 403) setCartErr("No autorizado para obtener el carrito actual.");
+      else setCartErr(e?.response?.data?.message || "Error al obtener el carrito actual");
     } finally {
       setLoadingCart(false);
     }
@@ -396,11 +393,13 @@ export default function BartenderCartPage() {
       setError("No autorizado: requiere rol bartender o admin.");
       return;
     }
+
     const code = input.trim();
     if (!code) {
       setError("Ingresá un código (ej: CCC2).");
       return;
     }
+
     const ev = eventId.trim();
     if (!ev) {
       setError("Elegí un evento.");
@@ -431,23 +430,15 @@ export default function BartenderCartPage() {
       setTimeout(() => inputRef.current?.focus(), 0);
     } catch (e: any) {
       const sc = e?.response?.status;
-      if (sc === 400)
-        setError(
-          e?.response?.data?.message ||
-            "Formato inválido o stock insuficiente"
-        );
-      else if (sc === 404)
-        setError(e?.response?.data?.message || "Producto no encontrado");
-      else
-        setError(
-          e?.response?.data?.message || "Error al procesar la entrada"
-        );
+      if (sc === 400) setError(e?.response?.data?.message || "Formato inválido o stock insuficiente");
+      else if (sc === 404) setError(e?.response?.data?.message || "Producto no encontrado");
+      else setError(e?.response?.data?.message || "Error al procesar la entrada");
     } finally {
       setSending(false);
     }
   }
 
-  /* =================== ACTUALIZADO: POST /bartender/cart/confirm =================== */
+  /* =================== ✅ FIX: confirmar + verificar ticket antes de imprimir =================== */
   async function confirmCart() {
     setConfirmMsg(null);
     setConfirmErr(null);
@@ -479,27 +470,35 @@ export default function BartenderCartPage() {
     try {
       setConfirming(true);
       const token = getToken();
-      const { data } = await api.post<ConfirmResponse>(
-        "/bartender/cart/confirm",
-        body,
-        {
-          headers: {
-            "Content-Type": "application/json",
-            ...(token ? { Authorization: `Bearer ${token}` } : {}),
-          },
-          validateStatus: (s) => s >= 200 && s < 300,
-        }
-      );
 
+      const { data } = await api.post<ConfirmResponse>("/bartender/cart/confirm", body, {
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        validateStatus: (s) => s >= 200 && s < 300,
+      });
+
+      const tid = data.ticketId || "";
       setConfirmMsg(data.message || "Ticket generado exitosamente.");
-      setLastTicketId(data.ticketId || null);
+      setLastTicketId(tid || null);
       setLastPrintFormat(data.printFormat || null);
 
       // el backend limpia el carrito; reflejamos en UI
       setSummary(null);
       setProductInfo(null);
 
-      if (data.printFormat) {
+      // ✅ Verificar persistencia real antes de imprimir
+      if (tid && data.printFormat) {
+        const ok = await waitForTicketPersisted(tid, token || undefined);
+        if (!ok) {
+          // No imprimimos si no existe (evita "imprimió pero no contó")
+          setConfirmErr(
+            "⚠️ El ticket aún no figura persistido en el sistema. Reintentá en unos segundos (se evitó imprimir para no generar tickets no contados)."
+          );
+          return;
+        }
+
         try {
           printFromFormat(data.printFormat);
         } catch {
@@ -508,24 +507,15 @@ export default function BartenderCartPage() {
       }
     } catch (e: any) {
       const sc = e?.response?.status;
-      if (sc === 400)
-        setConfirmErr(
-          e?.response?.data?.message ||
-            "Carrito vacío o stock insuficiente"
-        );
-      else if (sc === 401 || sc === 403)
-        setConfirmErr("No autorizado para confirmar el carrito.");
-      else
-        setConfirmErr(
-          e?.response?.data?.message || "Error al confirmar el carrito"
-        );
+      if (sc === 400) setConfirmErr(e?.response?.data?.message || "Carrito vacío o stock insuficiente");
+      else if (sc === 401 || sc === 403) setConfirmErr("No autorizado para confirmar el carrito.");
+      else setConfirmErr(e?.response?.data?.message || "Error al confirmar el carrito");
     } finally {
       setConfirming(false);
     }
   }
   /* ============================================================================= */
 
-  // DELETE /bartender/cart (opcional)
   async function clearCart() {
     setClearMsg(null);
     setClearErr(null);
@@ -542,34 +532,24 @@ export default function BartenderCartPage() {
     try {
       setClearing(true);
       const token = getToken();
-      const { data } = await api.delete<{ message?: string }>(
-        "/bartender/cart",
-        {
-          headers: token ? { Authorization: `Bearer ${token}` } : undefined,
-          validateStatus: (s) => s >= 200 && s < 300,
-        }
-      );
+      const { data } = await api.delete<{ message?: string }>("/bartender/cart", {
+        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+        validateStatus: (s) => s >= 200 && s < 300,
+      });
 
       setSummary(null);
       setProductInfo(null);
       setClearMsg(data?.message || "Carrito vaciado.");
-      setCartMeta((m) =>
-        m ? { ...m, updatedAt: new Date().toISOString() } : m
-      );
+      setCartMeta((m) => (m ? { ...m, updatedAt: new Date().toISOString() } : m));
     } catch (e: any) {
       const sc = e?.response?.status;
-      if (sc === 401 || sc === 403)
-        setClearErr("No autorizado para limpiar el carrito.");
-      else
-        setClearErr(
-          e?.response?.data?.message || "Error al limpiar el carrito"
-        );
+      if (sc === 401 || sc === 403) setClearErr("No autorizado para limpiar el carrito.");
+      else setClearErr(e?.response?.data?.message || "Error al limpiar el carrito");
     } finally {
       setClearing(false);
     }
   }
 
-  /* ================= NUEVO: DELETE /bartender/cart/item ================= */
   async function deleteCartItem(productId: string) {
     setDelMsg(null);
     setDelErr(null);
@@ -586,38 +566,23 @@ export default function BartenderCartPage() {
     try {
       setDeleting((prev) => ({ ...prev, [productId]: true }));
       const token = getToken();
-      const { data } = await api.delete<DeleteItemResponse>(
-        "/bartender/cart/item",
-        {
-          headers: {
-            "Content-Type": "application/json",
-            ...(token ? { Authorization: `Bearer ${token}` } : {}),
-          },
-          // 👇 Axios permite body en delete via `data`
-          data: { productId },
-          validateStatus: (s) => s >= 200 && s < 300,
-        }
-      );
+      const { data } = await api.delete<DeleteItemResponse>("/bartender/cart/item", {
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        data: { productId },
+        validateStatus: (s) => s >= 200 && s < 300,
+      });
 
       setSummary(data.cartSummary);
       setDelMsg(data.message || "Ítem eliminado.");
-      // si quedó vacío, limpiamos meta visual básica
-      if (!data.cartSummary.items?.length) {
-        setProductInfo(null);
-      }
+      if (!data.cartSummary.items?.length) setProductInfo(null);
     } catch (e: any) {
       const sc = e?.response?.status;
-      if (sc === 404)
-        setDelErr(
-          e?.response?.data?.message || "Ítem no encontrado en el carrito."
-        );
-      else if (sc === 400)
-        setDelErr(e?.response?.data?.message || "Solicitud inválida.");
-      else
-        setDelErr(
-          e?.response?.data?.message ||
-            "Error al eliminar el ítem del carrito."
-        );
+      if (sc === 404) setDelErr(e?.response?.data?.message || "Ítem no encontrado en el carrito.");
+      else if (sc === 400) setDelErr(e?.response?.data?.message || "Solicitud inválida.");
+      else setDelErr(e?.response?.data?.message || "Error al eliminar el ítem del carrito.");
     } finally {
       setDeleting((prev) => {
         const cp = { ...prev };
@@ -626,7 +591,6 @@ export default function BartenderCartPage() {
       });
     }
   }
-  /* ===================================================================== */
 
   function onSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -640,16 +604,8 @@ export default function BartenderCartPage() {
         <header className={styles.header}>
           <h1>🛒 Carrito</h1>
 
-          <button
-            className={styles.secondaryButton}
-            onClick={loadCart}
-            disabled={loadingCart}
-          >
-            {loadingCart
-              ? "Cargando..."
-              : summary
-              ? "Refrescar"
-              : "Cargar Carrito"}
+          <button className={styles.secondaryButton} onClick={loadCart} disabled={loadingCart}>
+            {loadingCart ? "Cargando..." : summary ? "Refrescar" : "Cargar Carrito"}
           </button>
         </header>
 
@@ -659,16 +615,10 @@ export default function BartenderCartPage() {
             {cartErr && <div className={styles.alertError}>{cartErr}</div>}
             <div className={styles.statsGrid}>
               <Card title="Cart ID" value={cartMeta.id || "—"} />
-              <Card
-                title="Bartender"
-                value={cartMeta.bartenderName || cartMeta.bartenderId || "—"}
-              />
+              <Card title="Bartender" value={cartMeta.bartenderName || cartMeta.bartenderId || "—"} />
               <Card title="Evento" value={cartMeta.eventId || "—"} />
               <Card title="Creado" value={formatDate(cartMeta.createdAt)} />
-              <Card
-                title="Actualizado"
-                value={formatDate(cartMeta.updatedAt)}
-              />
+              <Card title="Actualizado" value={formatDate(cartMeta.updatedAt)} />
             </div>
           </section>
         )}
@@ -677,7 +627,6 @@ export default function BartenderCartPage() {
         <section className={styles.section}>
           <h3 className={styles.sectionTitle}>Configuración</h3>
 
-          {/* ===== Evento (select) ===== */}
           <div>
             <label className={styles.label}>Evento</label>
             <select
@@ -687,11 +636,7 @@ export default function BartenderCartPage() {
               onChange={(e) => setEventId(e.target.value)}
               disabled={loadingEvents}
             >
-              <option value="">
-                {loadingEvents
-                  ? "Cargando eventos..."
-                  : "⚡ Selecciona un evento"}
-              </option>
+              <option value="">{loadingEvents ? "Cargando eventos..." : "⚡ Selecciona un evento"}</option>
               {events.map((ev) => (
                 <option key={ev.id} value={ev.id}>
                   {ev.name}
@@ -699,22 +644,15 @@ export default function BartenderCartPage() {
                 </option>
               ))}
             </select>
-            {eventsErr && (
-              <small
-                className={styles.helperText}
-                style={{ color: "var(--color-error)" }}
-              >
+            {eventsErr ? (
+              <small className={styles.helperText} style={{ color: "var(--color-error)" }}>
                 {eventsErr}
               </small>
-            )}
-            {!eventsErr && (
-              <small className={styles.helperText}>
-                Asocia el carrito al evento en curso
-              </small>
+            ) : (
+              <small className={styles.helperText}>Asocia el carrito al evento en curso</small>
             )}
           </div>
 
-          {/* ===== Barra (select) ===== */}
           <div>
             <label className={styles.label}>
               Barra <span className={styles.required}>*</span>
@@ -727,36 +665,23 @@ export default function BartenderCartPage() {
               disabled={!eventId || loadingBars}
               required
             >
-              {!eventId && (
-                <option value="">🔒 Elige un evento primero</option>
-              )}
-              {eventId && (
-                <option value="">
-                  {loadingBars ? "Cargando barras..." : "🍺 Selecciona una barra"}
-                </option>
-              )}
+              {!eventId && <option value="">🔒 Elige un evento primero</option>}
+              {eventId && <option value="">{loadingBars ? "Cargando barras..." : "🍺 Selecciona una barra"}</option>}
               {bars.map((b) => (
                 <option key={b.id} value={b.id}>
                   {b.name}
                 </option>
               ))}
             </select>
-            {barsErr && (
-              <small
-                className={styles.helperText}
-                style={{ color: "var(--color-error)" }}
-              >
+            {barsErr ? (
+              <small className={styles.helperText} style={{ color: "var(--color-error)" }}>
                 {barsErr}
               </small>
-            )}
-            {!barsErr && (
-              <small className={styles.helperText}>
-                Obligatorio para confirmar el carrito
-              </small>
+            ) : (
+              <small className={styles.helperText}>Obligatorio para confirmar el carrito</small>
             )}
           </div>
 
-          {/* Entrada bartender */}
           <form onSubmit={onSubmit}>
             <label className={styles.label}>Entrada del Bartender</label>
             <div style={{ display: "flex", gap: 12, alignItems: "stretch" }}>
@@ -774,35 +699,24 @@ export default function BartenderCartPage() {
                 }}
                 style={{ flex: 1 }}
               />
-              <button
-                className={styles.primaryButton}
-                type="submit"
-                disabled={sending}
-              >
+              <button className={styles.primaryButton} type="submit" disabled={sending}>
                 {sending ? "⏳ Procesando" : "➕ Agregar"}
               </button>
             </div>
 
             {lastMsg && !error && (
-              <div
-                className={styles.alertSuccess}
-                style={{ marginTop: "1rem" }}
-              >
+              <div className={styles.alertSuccess} style={{ marginTop: "1rem" }}>
                 ✓ {lastMsg}
               </div>
             )}
             {error && (
-              <div
-                className={styles.alertError}
-                style={{ marginTop: "1rem" }}
-              >
+              <div className={styles.alertError} style={{ marginTop: "1rem" }}>
                 ✗ {error}
               </div>
             )}
           </form>
         </section>
 
-        {/* Último producto reconocido */}
         {productInfo && (
           <section className={styles.productItem}>
             <h3 className={styles.sectionTitle}>✨ Último Ítem Agregado</h3>
@@ -816,43 +730,22 @@ export default function BartenderCartPage() {
           </section>
         )}
 
-        {/* Resumen del carrito */}
         <section className={styles.section}>
           <h3 className={styles.sectionTitle}>🛍️ Productos en el Carrito</h3>
 
-          {/* Mensajes de eliminación puntual */}
           {delMsg && !delErr && (
-            <div
-              style={{
-                border: "1px solid #bbf7d0",
-                background: "#ecfdf5",
-                color: "#065f46",
-                padding: 10,
-                borderRadius: 10,
-              }}
-            >
+            <div style={{ border: "1px solid #bbf7d0", background: "#ecfdf5", color: "#065f46", padding: 10, borderRadius: 10 }}>
               {delMsg}
             </div>
           )}
           {delErr && (
-            <div
-              style={{
-                border: "1px solid #fecaca",
-                background: "#fee2e2",
-                color: "#7f1d1d",
-                padding: 10,
-                borderRadius: 10,
-              }}
-            >
+            <div style={{ border: "1px solid #fecaca", background: "#fee2e2", color: "#7f1d1d", padding: 10, borderRadius: 10 }}>
               {delErr}
             </div>
           )}
 
           {!summary ? (
-            <p
-              className={styles.helperText}
-              style={{ textAlign: "center", padding: "2rem" }}
-            >
+            <p className={styles.helperText} style={{ textAlign: "center", padding: "2rem" }}>
               El carrito está vacío. ¡Empieza a agregar productos!
             </p>
           ) : (
@@ -882,32 +775,15 @@ export default function BartenderCartPage() {
                     {summary.items?.length ? (
                       summary.items.map((it, i) => (
                         <tr key={`${it.productId}-${i}`}>
-                          <td className={styles.productName}>
-                            {it.productName}
-                          </td>
+                          <td className={styles.productName}>{it.productName}</td>
                           <td>
-                            <span className={styles.productCode}>
-                              {it.productCode}
-                            </span>
+                            <span className={styles.productCode}>{it.productCode}</span>
                           </td>
-                          <td
-                            className={styles.priceCell}
-                            style={{ textAlign: "right" }}
-                          >
+                          <td className={styles.priceCell} style={{ textAlign: "right" }}>
                             {money(it.price)}
                           </td>
-                          <td
-                            style={{
-                              textAlign: "right",
-                              fontWeight: 600,
-                            }}
-                          >
-                            {it.quantity}
-                          </td>
-                          <td
-                            className={styles.priceCell}
-                            style={{ textAlign: "right" }}
-                          >
+                          <td style={{ textAlign: "right", fontWeight: 600 }}>{it.quantity}</td>
+                          <td className={styles.priceCell} style={{ textAlign: "right" }}>
                             {money(it.total)}
                           </td>
                           <td>{it.unit || "—"}</td>
@@ -917,27 +793,16 @@ export default function BartenderCartPage() {
                               onClick={() => deleteCartItem(it.productId)}
                               disabled={!!deleting[it.productId]}
                               title="Eliminar este producto del carrito"
-                              style={{
-                                padding: "6px 10px",
-                                fontSize: 12,
-                              }}
+                              style={{ padding: "6px 10px", fontSize: 12 }}
                             >
-                              {deleting[it.productId]
-                                ? "Eliminando…"
-                                : "Eliminar"}
+                              {deleting[it.productId] ? "Eliminando…" : "Eliminar"}
                             </button>
                           </td>
                         </tr>
                       ))
                     ) : (
                       <tr>
-                        <td
-                          colSpan={7}
-                          style={{
-                            textAlign: "center",
-                            padding: "2rem",
-                          }}
-                        >
+                        <td colSpan={7} style={{ textAlign: "center", padding: "2rem" }}>
                           Carrito vacío
                         </td>
                       </tr>
@@ -948,62 +813,42 @@ export default function BartenderCartPage() {
 
               {/* Confirmación */}
               <div style={{ marginTop: "2rem" }}>
-                <h4 className={styles.sectionTitle}>
-                  💳 Confirmar y Generar Ticket
-                </h4>
+                <h4 className={styles.sectionTitle}>💳 Confirmar y Generar Ticket</h4>
 
                 <div
                   style={{
                     display: "grid",
-                    gridTemplateColumns:
-                      "repeat(auto-fit, minmax(220px, 1fr))",
+                    gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
                     gap: "1rem",
                   }}
                 >
                   <div>
-                    <label className={styles.label}>
-                      Cliente (opcional)
-                    </label>
+                    <label className={styles.label}>Cliente (opcional)</label>
                     <input
                       className={styles.input}
                       placeholder="María González"
                       value={customerName}
-                      onChange={(e) =>
-                        setCustomerName(e.target.value)
-                      }
+                      onChange={(e) => setCustomerName(e.target.value)}
                     />
                   </div>
 
                   <div>
-                    <label className={styles.label}>
-                      Método de Pago
-                    </label>
+                    <label className={styles.label}>Método de Pago</label>
                     <select
                       className={styles.select}
                       value={paymentMethod}
-                      onChange={(e) =>
-                        setPaymentMethod(
-                          e.target.value as ConfirmBody["paymentMethod"]
-                        )
-                      }
+                      onChange={(e) => setPaymentMethod(e.target.value as ConfirmBody["paymentMethod"])}
                     >
                       <option value="cash">💵 Efectivo</option>
-                      
-                      <option value="administrator">
-                        🧾 Administrador
-                      </option>
-                      {/* 🔹 NUEVO: método DJ */}
+                      <option value="transfer">🏦 Transferencia</option>
+                      <option value="administrator">🧾 Administrador</option>
                       <option value="dj">🎧 DJ</option>
-                      {/* 🔹 NUEVO: método Entradas / Puertas */}
-                     
                     </select>
                   </div>
                 </div>
 
                 <div style={{ marginTop: "1rem" }}>
-                  <label className={styles.label}>
-                    Notas (opcional)
-                  </label>
+                  <label className={styles.label}>Notas (opcional)</label>
                   <input
                     className={styles.input}
                     placeholder="sin hielo"
@@ -1013,21 +858,12 @@ export default function BartenderCartPage() {
                 </div>
 
                 {confirmMsg && !confirmErr && (
-                  <div
-                    className={styles.alertSuccess}
-                    style={{ marginTop: "1rem" }}
-                  >
+                  <div className={styles.alertSuccess} style={{ marginTop: "1rem" }}>
                     ✓ {confirmMsg}
                     {lastTicketId && (
                       <div style={{ marginTop: 8 }}>
                         Ticket ID:{" "}
-                        <Link
-                          href={`/tickets/${lastTicketId}`}
-                          style={{
-                            textDecoration: "underline",
-                            fontWeight: 700,
-                          }}
-                        >
+                        <Link href={`/tickets/${lastTicketId}`} style={{ textDecoration: "underline", fontWeight: 700 }}>
                           {lastTicketId}
                         </Link>
                       </div>
@@ -1035,10 +871,7 @@ export default function BartenderCartPage() {
                   </div>
                 )}
                 {confirmErr && (
-                  <div
-                    className={styles.alertError}
-                    style={{ marginTop: "1rem" }}
-                  >
+                  <div className={styles.alertError} style={{ marginTop: "1rem" }}>
                     ✗ {confirmErr}
                   </div>
                 )}
@@ -1047,14 +880,10 @@ export default function BartenderCartPage() {
                   <button
                     className={styles.primaryButton}
                     onClick={confirmCart}
-                    disabled={
-                      confirming || !summary.items?.length
-                    }
+                    disabled={confirming || !summary.items?.length}
                     title="Confirmar carrito y generar ticket"
                   >
-                    {confirming
-                      ? "⏳ Generando..."
-                      : "✅ Confirmar Carrito"}
+                    {confirming ? "⏳ Generando..." : "✅ Confirmar Carrito"}
                   </button>
 
                   <button
@@ -1073,22 +902,16 @@ export default function BartenderCartPage() {
                   <button
                     className={`${styles.secondaryButton} ${styles.dangerButton}`}
                     onClick={clearCart}
-                    disabled={
-                      clearing || !summary.items?.length
-                    }
+                    disabled={clearing || !summary.items?.length}
                     title="Vaciar todo el carrito"
                   >
-                    {clearing
-                      ? "⏳ Vaciando..."
-                      : "🗑️ Vaciar Carrito"}
+                    {clearing ? "⏳ Vaciando..." : "🗑️ Vaciar Carrito"}
                   </button>
 
-                  {/* Reimprimir último ticket usando printFormat */}
                   <button
                     className={styles.secondaryButton}
                     onClick={() => {
-                      if (lastPrintFormat)
-                        printFromFormat(lastPrintFormat);
+                      if (lastPrintFormat) printFromFormat(lastPrintFormat);
                     }}
                     disabled={!lastPrintFormat}
                     title="Reimprimir último ticket"
@@ -1098,18 +921,12 @@ export default function BartenderCartPage() {
                 </div>
 
                 {clearMsg && !clearErr && (
-                  <div
-                    className={styles.alertSuccess}
-                    style={{ marginTop: "1rem" }}
-                  >
+                  <div className={styles.alertSuccess} style={{ marginTop: "1rem" }}>
                     ✓ {clearMsg}
                   </div>
                 )}
                 {clearErr && (
-                  <div
-                    className={styles.alertError}
-                    style={{ marginTop: "1rem" }}
-                  >
+                  <div className={styles.alertError} style={{ marginTop: "1rem" }}>
                     ✗ {clearErr}
                   </div>
                 )}
@@ -1132,7 +949,6 @@ function Card({ title, value }: { title: string; value: string | number }) {
   );
 }
 
-/* 💰 Formateo de moneda con soporte de currency */
 function money(n?: number, currency?: string) {
   if (typeof n !== "number" || Number.isNaN(n)) return "—";
   const cur = currency || "ARS";
@@ -1151,26 +967,22 @@ function formatDate(iso?: string) {
   if (!iso) return "—";
   try {
     const d = new Date(iso);
-    return `${d.toLocaleDateString()} ${d.toLocaleTimeString([], {
-      hour: "2-digit",
-      minute: "2-digit",
-    })}`;
+    return `${d.toLocaleDateString()} ${d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`;
   } catch {
     return String(iso);
   }
 }
 
-/* ======================= PRINT DESDE printFormat (layout monoespaciado tipo térmica) ======================= */
+/* ======================= PRINT DESDE printFormat ======================= */
 function printFromFormat(fmt: PrintFormat) {
-  const paper = fmt.printerSettings?.paperWidth || 58; // 58 u 80
+  const paper = fmt.printerSettings?.paperWidth || 58;
   const fontSize = fmt.printerSettings?.fontSize || 12;
   const fontFamily =
     fmt.printerSettings?.fontFamily ||
     "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace";
   const currency = fmt.totals?.currency || fmt.ticket?.currency || "ARS";
 
-  const COLS =
-    paper >= 80 ? 48 : fontSize <= 10 ? 42 : 32;
+  const COLS = paper >= 80 ? 48 : fontSize <= 10 ? 42 : 32;
 
   const money2 = (n?: number) => {
     if (typeof n !== "number" || Number.isNaN(n)) return "—";
@@ -1196,36 +1008,22 @@ function printFromFormat(fmt: PrintFormat) {
   const addr = fmt.header?.businessAddress || "";
   const phone = fmt.header?.businessPhone || "";
   const taxId = fmt.header?.businessTaxId || "";
-  const customerName =
-    (fmt as any)?.ticket?.customerName ||
-    (fmt as any)?.customerName ||
-    "";
+  const customerName = (fmt as any)?.ticket?.customerName || (fmt as any)?.customerName || "";
 
   const line = (ch = "-") => ch.repeat(COLS);
-  const clamp = (s: string) =>
-    s.length > COLS ? s.slice(0, COLS) : s;
+  const clamp = (s: string) => (s.length > COLS ? s.slice(0, COLS) : s);
   const center = (s: string) => {
     s = s.slice(0, COLS);
     const pad = Math.max(0, Math.floor((COLS - s.length) / 2));
-    return (
-      " ".repeat(pad) +
-      s +
-      " ".repeat(Math.max(0, COLS - pad - s.length))
-    );
+    return " ".repeat(pad) + s + " ".repeat(Math.max(0, COLS - pad - s.length));
   };
   const kv = (left: string, right: string) => {
     left = left || "";
     right = right || "";
     const maxLeft = Math.max(0, COLS - right.length);
-    const L =
-      left.length > maxLeft ? left.slice(0, maxLeft) : left;
-    return (
-      L +
-      " ".repeat(Math.max(0, COLS - (L.length + right.length))) +
-      right
-    );
+    const L = left.length > maxLeft ? left.slice(0, maxLeft) : left;
+    return L + " ".repeat(Math.max(0, COLS - (L.length + right.length))) + right;
   };
-  const twoCols = (a: string, b: string) => kv(a, b);
 
   const itemLines = (fmt.items || []).flatMap((it) => {
     const name = clamp(String(it.name || ""));
@@ -1235,7 +1033,6 @@ function printFromFormat(fmt: PrintFormat) {
   });
 
   const rows: string[] = [];
-
   rows.push(line());
   rows.push(center(title));
   rows.push(line());
@@ -1245,13 +1042,9 @@ function printFromFormat(fmt: PrintFormat) {
   rows.push("");
 
   rows.push(kv("Ticket:", fmt.ticket.ticketNumber));
-  rows.push(
-    kv("Fecha:", `${fmt.ticket.date}   Hora: ${fmt.ticket.time}`)
-  );
-  if (fmt.ticket.eventName)
-    rows.push(kv("Evento:", fmt.ticket.eventName));
-  if (fmt.ticket.barName)
-    rows.push(kv("Barra:", fmt.ticket.barName));
+  rows.push(kv("Fecha:", `${fmt.ticket.date}   Hora: ${fmt.ticket.time}`));
+  if (fmt.ticket.eventName) rows.push(kv("Evento:", fmt.ticket.eventName));
+  if (fmt.ticket.barName) rows.push(kv("Barra:", fmt.ticket.barName));
   rows.push(kv("Atendido por:", fmt.ticket.userName));
   rows.push("PRODUCTOS");
   rows.push(line());
@@ -1259,33 +1052,22 @@ function printFromFormat(fmt: PrintFormat) {
   rows.push(...itemLines);
 
   rows.push(line());
-  rows.push(twoCols("Subtotal:", money2(fmt.totals.subtotal)));
-  rows.push(twoCols(`IVA (${ivaRate}%)`, money2(fmt.totals.tax)));
+  rows.push(kv("Subtotal:", money2(fmt.totals.subtotal)));
+  rows.push(kv(`IVA (${ivaRate}%)`, money2(fmt.totals.tax)));
   rows.push(line());
-  rows.push(twoCols("TOTAL:", money2(fmt.totals.total)));
+  rows.push(kv("TOTAL:", money2(fmt.totals.total)));
   rows.push("");
 
-  rows.push(
-    kv(
-      "Método de pago:",
-      (fmt.payment.method || "").toUpperCase()
-    )
-  );
+  rows.push(kv("Método de pago:", (fmt.payment.method || "").toUpperCase()));
   if (customerName) rows.push(kv("Cliente:", customerName));
   if ((fmt as any)?.notes) {
     rows.push("");
     rows.push(clamp(`Notas: ${(fmt as any).notes}`));
   }
   rows.push("");
-  rows.push(
-    fmt.footer?.thankYouMessage
-      ? clamp(fmt.footer.thankYouMessage)
-      : "¡Gracias por su compra!"
-  );
-  if (fmt.footer?.businessWebsite)
-    rows.push(clamp(fmt.footer.businessWebsite));
-  if (fmt.footer?.receiptFooter)
-    rows.push(clamp(fmt.footer.receiptFooter));
+  rows.push(fmt.footer?.thankYouMessage ? clamp(fmt.footer.thankYouMessage) : "¡Gracias por su compra!");
+  if (fmt.footer?.businessWebsite) rows.push(clamp(fmt.footer.businessWebsite));
+  if (fmt.footer?.receiptFooter) rows.push(clamp(fmt.footer.receiptFooter));
   rows.push(line());
 
   const text = rows.join("\n");
@@ -1342,14 +1124,12 @@ function printFromFormat(fmt: PrintFormat) {
     }, 1000);
   };
 
-  const doc =
-    iframe.contentDocument || iframe.contentWindow?.document;
+  const doc = iframe.contentDocument || iframe.contentWindow?.document;
   if (!doc) return;
   doc.open();
   doc.write(html);
   doc.close();
-  if (iframe.contentDocument?.readyState === "complete")
-    onLoad();
+  if (iframe.contentDocument?.readyState === "complete") onLoad();
   else iframe.onload = onLoad;
 }
 

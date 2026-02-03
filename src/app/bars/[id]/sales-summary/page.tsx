@@ -1,7 +1,6 @@
-// src/app/bars/[id]/sales-summary/page.tsx
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Guard from "@/components/Guard";
 import Navbar from "@/components/Navbar";
@@ -29,61 +28,15 @@ type SalesSummary = {
     revenue: number;
     percentage: number;
   }[];
-  // 🔹 productos segmentados por método de pago
   productsSoldByPaymentMethod?: {
-    cash?: {
-      productId: string;
-      productName: string;
-      quantitySold: number;
-      revenue: number;
-      percentage: number;
-    }[];
-    card?: {
-      productId: string;
-      productName: string;
-      quantitySold: number;
-      revenue: number;
-      percentage: number;
-    }[];
-    mixed?: {
-      productId: string;
-      productName: string;
-      quantitySold: number;
-      revenue: number;
-      percentage: number;
-    }[];
-    administrator?: {
-      productId: string;
-      productName: string;
-      quantitySold: number;
-      revenue: number;
-      percentage: number;
-    }[];
-    // 🔹 NUEVO: productos pagados como "entradas" (puertas)
-    entradas?: {
-      productId: string;
-      productName: string;
-      quantitySold: number;
-      revenue: number;
-      percentage: number;
-    }[];
-    // 🔹 NUEVO: productos asociados al método "dj"
-    dj?: {
-      productId: string;
-      productName: string;
-      quantitySold: number;
-      revenue: number;
-      percentage: number;
-    }[];
-    [k: string]:
-      | {
-          productId: string;
-          productName: string;
-          quantitySold: number;
-          revenue: number;
-          percentage: number;
-        }[]
-      | undefined;
+    cash?: SummaryProduct[];
+    card?: SummaryProduct[];
+    mixed?: SummaryProduct[];
+    transfer?: SummaryProduct[];
+    administrator?: SummaryProduct[];
+    entradas?: SummaryProduct[];
+    dj?: SummaryProduct[];
+    [k: string]: SummaryProduct[] | undefined;
   };
   salesByUser: {
     userId: string;
@@ -95,10 +48,9 @@ type SalesSummary = {
     cash?: number;
     card?: number;
     mixed?: number;
+    transfer?: number;
     administrator?: number;
-    // 🔹 NUEVO: total asociado a "entradas" (puertas)
     entradas?: number;
-    // 🔹 NUEVO: total asociado a "dj"
     dj?: number;
     [k: string]: number | undefined;
   };
@@ -109,6 +61,14 @@ type SalesSummary = {
   }[];
 };
 
+type SummaryProduct = {
+  productId: string;
+  productName: string;
+  quantitySold: number;
+  revenue: number;
+  percentage: number;
+};
+
 export default function BarSalesSummaryPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
@@ -117,35 +77,71 @@ export default function BarSalesSummaryPage() {
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
-  async function load() {
+  // Evitar cargas simultáneas / solapadas
+  const inFlightRef = useRef(false);
+
+  const load = useCallback(async () => {
     if (!id) return;
+    if (inFlightRef.current) return;
+
     setLoading(true);
     setErr(null);
+    inFlightRef.current = true;
+
     try {
       if (!hasRole(["admin"])) {
         setErr("No autorizado: requiere rol admin.");
-        setLoading(false);
         return;
       }
+
       const token = getToken();
-      const { data } = await api.get<SalesSummary>(`/bars/${id}/sales-summary`, {
-        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+
+      // ✅ cache buster + no-cache
+      const url = `/bars/${id}/sales-summary?_ts=${Date.now()}`;
+
+      const res = await api.get<SalesSummary>(url, {
+        headers: {
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          "Cache-Control": "no-cache",
+          Pragma: "no-cache",
+        },
+        validateStatus: (s) => s >= 200 && s < 300,
       });
-      setData(data);
+
+      setData(res.data);
     } catch (e: any) {
       const sc = e?.response?.status;
       if (sc === 404) setErr("No se encontró la barra o no hay resumen disponible.");
       else if (sc === 403) setErr("No autorizado: requiere rol admin.");
       else setErr(e?.response?.data?.message || "Error al cargar el resumen de ventas.");
     } finally {
+      inFlightRef.current = false;
       setLoading(false);
     }
-  }
+  }, [id]);
 
+  // Carga inicial + cuando cambia id
   useEffect(() => {
     void load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [id]);
+  }, [load]);
+
+  // ✅ Auto-refresh (configurable)
+  useEffect(() => {
+    if (!id) return;
+    const t = setInterval(() => {
+      void load();
+    }, 4000); // 4s
+    return () => clearInterval(t);
+  }, [id, load]);
+
+  // ✅ Refrescar al volver al tab
+  useEffect(() => {
+    const onVis = () => {
+      if (document.visibilityState === "visible") void load();
+    };
+    document.addEventListener("visibilitychange", onVis);
+    return () => document.removeEventListener("visibilitychange", onVis);
+  }, [load]);
 
   const paymentRows = useMemo(() => {
     if (!data?.salesByPaymentMethod) return [];
@@ -160,23 +156,24 @@ export default function BarSalesSummaryPage() {
 
   const hourly = useMemo(() => {
     const list = data?.hourlyDistribution ?? [];
-    // Orden por hora (HH:MM) ascendente
     return [...list].sort((a, b) => a.hour.localeCompare(b.hour));
   }, [data]);
 
-  // 🔹 productos pagados con método "Administrador"
   const adminProducts = useMemo(() => {
     const list = data?.productsSoldByPaymentMethod?.administrator ?? [];
     return [...list].sort((a, b) => b.quantitySold - a.quantitySold);
   }, [data]);
 
-  // 🔹 NUEVO: productos pagados con método "DJ"
+  const transferProducts = useMemo(() => {
+    const list = data?.productsSoldByPaymentMethod?.transfer ?? [];
+    return [...list].sort((a, b) => b.quantitySold - a.quantitySold);
+  }, [data]);
+
   const djProducts = useMemo(() => {
     const list = data?.productsSoldByPaymentMethod?.dj ?? [];
     return [...list].sort((a, b) => b.quantitySold - a.quantitySold);
   }, [data]);
 
-  // 🔹 NUEVO: productos pagados como "Entradas" (puertas)
   const entradasProducts = useMemo(() => {
     const list = data?.productsSoldByPaymentMethod?.entradas ?? [];
     return [...list].sort((a, b) => b.quantitySold - a.quantitySold);
@@ -195,7 +192,9 @@ export default function BarSalesSummaryPage() {
           >
             ← Volver
           </button>
+
           <h1 style={{ margin: 0 }}>Resumen de ventas por barra</h1>
+
           <div style={{ marginLeft: "auto", display: "flex", gap: 8 }}>
             {id && (
               <Link className={btn.secondary} href={`/bars/${id}`}>
@@ -263,6 +262,7 @@ export default function BarSalesSummaryPage() {
             <strong style={cardTitle}>Productos vendidos</strong>
             <small style={{ color: "#6b7280" }}>Cantidad, ingresos y % del total</small>
           </div>
+
           {loading ? (
             <span style={{ color: "#6b7280" }}>Cargando…</span>
           ) : !data?.productsSold?.length ? (
@@ -329,13 +329,47 @@ export default function BarSalesSummaryPage() {
           </section>
         )}
 
-        {/* 🔹 NUEVO: Productos consumidos por DJ */}
+        {/* Productos consumidos por Transferencia */}
+        {transferProducts.length > 0 && (
+          <section style={cardSectionStyle}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <strong style={cardTitle}>Productos consumidos por Transferencia</strong>
+              <small style={{ color: "#6b7280" }}>
+                Detalle de productos pagados con método &quot;Transferencia&quot;
+              </small>
+            </div>
+            <div style={{ overflowX: "auto" }}>
+              <table style={tableStyle}>
+                <thead>
+                  <tr>
+                    <Th>Producto</Th>
+                    <Th style={{ textAlign: "right" }}>Cantidad</Th>
+                    <Th style={{ textAlign: "right" }}>Ingresos</Th>
+                    <Th style={{ textAlign: "right" }}>% dentro de Transferencia</Th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {transferProducts.map((p) => (
+                    <tr key={p.productId}>
+                      <Td>{p.productName}</Td>
+                      <Td style={{ textAlign: "right" }}>{p.quantitySold}</Td>
+                      <Td style={{ textAlign: "right" }}>{money(p.revenue)}</Td>
+                      <Td style={{ textAlign: "right" }}>{p.percentage.toFixed(1)}%</Td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </section>
+        )}
+
+        {/* Productos consumidos por DJ */}
         {djProducts.length > 0 && (
           <section style={cardSectionStyle}>
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
               <strong style={cardTitle}>Productos consumidos por DJ</strong>
               <small style={{ color: "#6b7280" }}>
-                Detalle de productos pagados con método &quot;DJ&quot; (gastos del DJ)
+                Detalle de productos pagados con método &quot;DJ&quot;
               </small>
             </div>
             <div style={{ overflowX: "auto" }}>
@@ -363,13 +397,13 @@ export default function BarSalesSummaryPage() {
           </section>
         )}
 
-        {/* 🔹 NUEVO: Entradas en puertas */}
+        {/* Entradas en puertas */}
         {entradasProducts.length > 0 && (
           <section style={cardSectionStyle}>
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
               <strong style={cardTitle}>Entradas en puertas</strong>
               <small style={{ color: "#6b7280" }}>
-                Detalle de productos marcados como &quot;Entradas&quot; (puertas)
+                Detalle de productos marcados como &quot;Entradas&quot;
               </small>
             </div>
             <div style={{ overflowX: "auto" }}>
@@ -514,6 +548,7 @@ function Kpi({ title, value }: { title: string; value: string | number }) {
     </div>
   );
 }
+
 function Card({ title, value }: { title: string; value: React.ReactNode }) {
   return (
     <div
@@ -531,6 +566,7 @@ function Card({ title, value }: { title: string; value: React.ReactNode }) {
     </div>
   );
 }
+
 const Th: React.FC<React.ThHTMLAttributes<HTMLTableCellElement>> = (props) => (
   <th
     {...props}
@@ -544,6 +580,7 @@ const Th: React.FC<React.ThHTMLAttributes<HTMLTableCellElement>> = (props) => (
     }}
   />
 );
+
 const Td: React.FC<React.TdHTMLAttributes<HTMLTableCellElement>> = (props) => (
   <td
     {...props}
@@ -568,13 +605,15 @@ function money(n?: number, currency?: string) {
     return `${cur} ${n}`;
   }
 }
+
 function labelPayment(k: string) {
   if (k === "cash") return "Efectivo";
   if (k === "card") return "Tarjeta";
   if (k === "mixed") return "Mixto";
+  if (k === "transfer") return "Transferencia";
   if (k === "administrator") return "Administrador";
   if (k === "entradas") return "Entradas (puertas)";
-  if (k === "dj") return "DJ"; // 🔹 NUEVO label para método DJ
+  if (k === "dj") return "DJ";
   return k;
 }
 
@@ -584,6 +623,7 @@ const tableStyle: React.CSSProperties = {
   borderCollapse: "collapse",
   fontSize: 14,
 };
+
 const codeStyle: React.CSSProperties = {
   background: "#f9fafb",
   border: "1px solid #e5e7eb",
@@ -594,7 +634,9 @@ const codeStyle: React.CSSProperties = {
   fontSize: 12,
   color: "#374151",
 };
+
 const cardTitle: React.CSSProperties = { fontSize: 16 };
+
 const cardSectionStyle: React.CSSProperties = {
   border: "1px solid #e5e7eb",
   background: "#fff",
@@ -603,6 +645,7 @@ const cardSectionStyle: React.CSSProperties = {
   display: "grid",
   gap: 10,
 };
+
 function gridCols(n: number): React.CSSProperties {
   return {
     display: "grid",
