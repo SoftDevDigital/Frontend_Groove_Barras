@@ -74,70 +74,102 @@ export default function BarSalesSummaryPage() {
   const router = useRouter();
 
   const [data, setData] = useState<SalesSummary | null>(null);
-  const [loading, setLoading] = useState(false);
+
+  // ✅ loading SOLO para primera carga (sin parpadeo en refresh)
+  const [initialLoading, setInitialLoading] = useState(true);
+
+  // ✅ refreshing para auto-refresh / refresh manual (no tapa datos)
+  const [refreshing, setRefreshing] = useState(false);
+
   const [err, setErr] = useState<string | null>(null);
 
   // Evitar cargas simultáneas / solapadas
   const inFlightRef = useRef(false);
 
-  const load = useCallback(async () => {
-    if (!id) return;
-    if (inFlightRef.current) return;
+  // Para saber si ya cargamos al menos una vez
+  const hasLoadedRef = useRef(false);
 
-    setLoading(true);
-    setErr(null);
-    inFlightRef.current = true;
+  const load = useCallback(
+    async (opts?: { silent?: boolean }) => {
+      if (!id) return;
+      if (inFlightRef.current) return;
 
-    try {
-      if (!hasRole(["admin"])) {
-        setErr("No autorizado: requiere rol admin.");
-        return;
+      const silent = opts?.silent ?? false;
+
+      // Primer load: mostramos "Cargando…"
+      // Refresh: NO mostramos "Cargando…" en las secciones (solo badge/estado)
+      const isFirstLoad = !hasLoadedRef.current;
+
+      if (isFirstLoad) setInitialLoading(true);
+      else setRefreshing(true);
+
+      // En refresh silencioso no limpiamos el error de golpe (para no "parpadear" banners)
+      if (isFirstLoad || !silent) setErr(null);
+
+      inFlightRef.current = true;
+
+      try {
+        if (!hasRole(["admin"])) {
+          setErr("No autorizado: requiere rol admin.");
+          return;
+        }
+
+        const token = getToken();
+
+        // Si querés cache-buster OK, pero no afecta al parpadeo (eso era el loading)
+        const url = `/bars/${id}/sales-summary?_ts=${Date.now()}`;
+
+        const res = await api.get<SalesSummary>(url, {
+          headers: {
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+            "Cache-Control": "no-cache",
+            Pragma: "no-cache",
+          },
+          validateStatus: (s) => s >= 200 && s < 300,
+        });
+
+        setData(res.data);
+        hasLoadedRef.current = true;
+      } catch (e: any) {
+        const sc = e?.response?.status;
+        const msg =
+          sc === 404
+            ? "No se encontró la barra o no hay resumen disponible."
+            : sc === 403
+            ? "No autorizado: requiere rol admin."
+            : e?.response?.data?.message || "Error al cargar el resumen de ventas.";
+
+        // Mostramos error, pero NO borramos data (así no “recarga” la UI)
+        setErr(msg);
+      } finally {
+        inFlightRef.current = false;
+        setInitialLoading(false);
+        setRefreshing(false);
       }
-
-      const token = getToken();
-
-      // ✅ cache buster + no-cache
-      const url = `/bars/${id}/sales-summary?_ts=${Date.now()}`;
-
-      const res = await api.get<SalesSummary>(url, {
-        headers: {
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-          "Cache-Control": "no-cache",
-          Pragma: "no-cache",
-        },
-        validateStatus: (s) => s >= 200 && s < 300,
-      });
-
-      setData(res.data);
-    } catch (e: any) {
-      const sc = e?.response?.status;
-      if (sc === 404) setErr("No se encontró la barra o no hay resumen disponible.");
-      else if (sc === 403) setErr("No autorizado: requiere rol admin.");
-      else setErr(e?.response?.data?.message || "Error al cargar el resumen de ventas.");
-    } finally {
-      inFlightRef.current = false;
-      setLoading(false);
-    }
-  }, [id]);
+    },
+    [id]
+  );
 
   // Carga inicial + cuando cambia id
   useEffect(() => {
-    void load();
+    hasLoadedRef.current = false;
+    setInitialLoading(true);
+    void load({ silent: false });
   }, [load]);
 
-  // ✅ Auto-refresh (configurable)
+  // ✅ Auto-refresh SIN parpadeo visual
   useEffect(() => {
     if (!id) return;
     const t = setInterval(() => {
-      void load();
+      void load({ silent: true });
     }, 4000); // 4s
     return () => clearInterval(t);
   }, [id, load]);
 
-  // ✅ Refrescar al volver al tab
+  // ✅ Refrescar al volver al tab (silencioso)
   useEffect(() => {
     const onVis = () => {
-      if (document.visibilityState === "visible") void load();
+      if (document.visibilityState === "visible") void load({ silent: true });
     };
     document.addEventListener("visibilitychange", onVis);
     return () => document.removeEventListener("visibilitychange", onVis);
@@ -157,6 +189,11 @@ export default function BarSalesSummaryPage() {
   const hourly = useMemo(() => {
     const list = data?.hourlyDistribution ?? [];
     return [...list].sort((a, b) => a.hour.localeCompare(b.hour));
+  }, [data]);
+
+  const cashProducts = useMemo(() => {
+    const list = data?.productsSoldByPaymentMethod?.cash ?? [];
+    return [...list].sort((a, b) => b.quantitySold - a.quantitySold);
   }, [data]);
 
   const adminProducts = useMemo(() => {
@@ -179,6 +216,8 @@ export default function BarSalesSummaryPage() {
     return [...list].sort((a, b) => b.quantitySold - a.quantitySold);
   }, [data]);
 
+  const showSkeleton = initialLoading && !data;
+
   return (
     <Guard roles={["admin"]}>
       <Navbar />
@@ -195,14 +234,32 @@ export default function BarSalesSummaryPage() {
 
           <h1 style={{ margin: 0 }}>Resumen de ventas por barra</h1>
 
+          {/* ✅ indicador sutil de refresh */}
+          {refreshing && (
+            <span
+              style={{
+                marginLeft: 8,
+                fontSize: 12,
+                fontWeight: 700,
+                color: "#374151",
+                background: "#f3f4f6",
+                border: "1px solid #e5e7eb",
+                padding: "4px 8px",
+                borderRadius: 999,
+              }}
+            >
+              Actualizando…
+            </span>
+          )}
+
           <div style={{ marginLeft: "auto", display: "flex", gap: 8 }}>
             {id && (
               <Link className={btn.secondary} href={`/bars/${id}`}>
                 Ver detalle de barra
               </Link>
             )}
-            <button className={btn.secondary} onClick={load} disabled={loading}>
-              {loading ? "Actualizando…" : "Refrescar"}
+            <button className={btn.secondary} onClick={() => load({ silent: false })} disabled={initialLoading || refreshing}>
+              {initialLoading ? "Cargando…" : refreshing ? "Actualizando…" : "Refrescar"}
             </button>
           </div>
         </div>
@@ -224,7 +281,7 @@ export default function BarSalesSummaryPage() {
         {/* Meta de la barra */}
         <section style={cardSectionStyle}>
           <strong style={cardTitle}>Barra</strong>
-          {loading ? (
+          {showSkeleton ? (
             <span style={{ color: "#6b7280" }}>Cargando…</span>
           ) : !data ? (
             <span style={{ color: "#6b7280" }}>Sin datos para mostrar.</span>
@@ -242,7 +299,7 @@ export default function BarSalesSummaryPage() {
         {/* Totales */}
         <section style={cardSectionStyle}>
           <strong style={cardTitle}>Totales</strong>
-          {loading ? (
+          {showSkeleton ? (
             <span style={{ color: "#6b7280" }}>Cargando…</span>
           ) : !data ? (
             <span style={{ color: "#6b7280" }}>—</span>
@@ -263,7 +320,7 @@ export default function BarSalesSummaryPage() {
             <small style={{ color: "#6b7280" }}>Cantidad, ingresos y % del total</small>
           </div>
 
-          {loading ? (
+          {showSkeleton ? (
             <span style={{ color: "#6b7280" }}>Cargando…</span>
           ) : !data?.productsSold?.length ? (
             <span style={{ color: "#6b7280" }}>No hay productos vendidos en este rango.</span>
@@ -294,6 +351,40 @@ export default function BarSalesSummaryPage() {
             </div>
           )}
         </section>
+
+        {/* ✅ Productos consumidos por Efectivo */}
+        {cashProducts.length > 0 && (
+          <section style={cardSectionStyle}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <strong style={cardTitle}>Productos consumidos por Efectivo</strong>
+              <small style={{ color: "#6b7280" }}>
+                Detalle de productos pagados con método &quot;Efectivo&quot;
+              </small>
+            </div>
+            <div style={{ overflowX: "auto" }}>
+              <table style={tableStyle}>
+                <thead>
+                  <tr>
+                    <Th>Producto</Th>
+                    <Th style={{ textAlign: "right" }}>Cantidad</Th>
+                    <Th style={{ textAlign: "right" }}>Ingresos</Th>
+                    <Th style={{ textAlign: "right" }}>% dentro de Efectivo</Th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {cashProducts.map((p) => (
+                    <tr key={p.productId}>
+                      <Td>{p.productName}</Td>
+                      <Td style={{ textAlign: "right" }}>{p.quantitySold}</Td>
+                      <Td style={{ textAlign: "right" }}>{money(p.revenue)}</Td>
+                      <Td style={{ textAlign: "right" }}>{p.percentage.toFixed(1)}%</Td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </section>
+        )}
 
         {/* Productos consumidos por Administrador */}
         {adminProducts.length > 0 && (
@@ -368,9 +459,7 @@ export default function BarSalesSummaryPage() {
           <section style={cardSectionStyle}>
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
               <strong style={cardTitle}>Productos consumidos por DJ</strong>
-              <small style={{ color: "#6b7280" }}>
-                Detalle de productos pagados con método &quot;DJ&quot;
-              </small>
+              <small style={{ color: "#6b7280" }}>Detalle de productos pagados con método &quot;DJ&quot;</small>
             </div>
             <div style={{ overflowX: "auto" }}>
               <table style={tableStyle}>
@@ -402,9 +491,7 @@ export default function BarSalesSummaryPage() {
           <section style={cardSectionStyle}>
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
               <strong style={cardTitle}>Entradas en puertas</strong>
-              <small style={{ color: "#6b7280" }}>
-                Detalle de productos marcados como &quot;Entradas&quot;
-              </small>
+              <small style={{ color: "#6b7280" }}>Detalle de productos marcados como &quot;Entradas&quot;</small>
             </div>
             <div style={{ overflowX: "auto" }}>
               <table style={tableStyle}>
@@ -434,7 +521,7 @@ export default function BarSalesSummaryPage() {
         {/* Ventas por bartender */}
         <section style={cardSectionStyle}>
           <strong style={cardTitle}>Ventas por bartender</strong>
-          {loading ? (
+          {showSkeleton ? (
             <span style={{ color: "#6b7280" }}>Cargando…</span>
           ) : !data?.salesByUser?.length ? (
             <span style={{ color: "#6b7280" }}>No hay ventas por usuario.</span>
@@ -467,7 +554,7 @@ export default function BarSalesSummaryPage() {
         {/* Métodos de pago */}
         <section style={cardSectionStyle}>
           <strong style={cardTitle}>Métodos de pago</strong>
-          {loading ? (
+          {showSkeleton ? (
             <span style={{ color: "#6b7280" }}>Cargando…</span>
           ) : paymentRows.length === 0 ? (
             <span style={{ color: "#6b7280" }}>Sin datos de métodos de pago.</span>
@@ -498,7 +585,7 @@ export default function BarSalesSummaryPage() {
         {/* Distribución horaria */}
         <section style={cardSectionStyle}>
           <strong style={cardTitle}>Distribución por hora</strong>
-          {loading ? (
+          {showSkeleton ? (
             <span style={{ color: "#6b7280" }}>Cargando…</span>
           ) : hourly.length === 0 ? (
             <span style={{ color: "#6b7280" }}>Sin ventas por franja horaria.</span>
