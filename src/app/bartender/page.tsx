@@ -63,82 +63,6 @@ type CartResponse = {
   updatedAt?: string;
 };
 
-type ConfirmBody = {
-  barId: string;
-  customerName?: string;
-  paymentMethod?:
-    | "cash"
-    | "card"
-    | "mixed"
-    | "transfer"
-    | "administrator"
-    | "entradas"
-    | "dj";
-  notes?: string;
-};
-
-type PrintFormat = {
-  header: {
-    businessName: string;
-    businessAddress: string;
-    businessPhone: string;
-    businessTaxId: string;
-    businessEmail: string;
-  };
-  ticket: {
-    ticketNumber: string;
-    userName: string;
-    barName: string;
-    eventName: string;
-    date: string;
-    time: string;
-    currency: string;
-  };
-  items: {
-    name: string;
-    quantity: number;
-    unitPrice: number;
-    subtotal: number;
-    taxRate: number;
-    tax: number;
-  }[];
-  totals: {
-    subtotal: number;
-    tax: number;
-    total: number;
-    currency: string;
-  };
-  payment: {
-    method: string;
-    paidAmount: number;
-    changeAmount: number;
-    currency: string;
-  };
-  footer: {
-    thankYouMessage: string;
-    businessWebsite: string;
-    receiptFooter: string;
-  };
-  printerSettings: {
-    paperWidth: number;
-    fontSize: number;
-    fontFamily: string;
-  };
-};
-
-type ConfirmResponse = {
-  success: boolean;
-  ticketId: string;
-  message: string;
-  printFormat: PrintFormat;
-};
-
-type DeleteItemResponse = {
-  success: boolean;
-  message: string;
-  cartSummary: CartSummary;
-};
-
 type TicketItem = {
   productId: string;
   productName: string;
@@ -155,46 +79,367 @@ type TicketDTO = {
   customerName?: string;
   items: TicketItem[];
   subtotal: number;
-  tax: number;
+  tax?: number;
+  totalTax?: number;
   total: number;
   paymentMethod: string;
   notes?: string;
   createdAt: string;
 };
 
+type DeleteItemResponse = {
+  success: boolean;
+  message: string;
+  cartSummary: CartSummary;
+};
+
 type EventOption = { id: string; name: string; date?: string };
 type BarOption = { id: string; name: string; eventId?: string };
 
-/* ================= helpers nuevos ================= */
-function sleep(ms: number) {
-  return new Promise((r) => setTimeout(r, ms));
+type PrintItem = {
+  id?: string;
+  productId?: string;
+  productName?: string;
+  name?: string;
+  quantity: number;
+  unitPrice?: number;
+  price?: number;
+  subtotal?: number;
+  tax?: number;
+  total: number;
+};
+
+type TicketPrintFormat = {
+  id: string;
+  userId?: string;
+  userName?: string;
+  barId?: string;
+  barName?: string;
+  eventId?: string;
+  eventName?: string;
+  status?: string;
+  paymentMethod?: string;
+  subtotal?: number;
+  totalTax?: number;
+  total?: number;
+  notes?: string;
+  printed?: boolean;
+  createdAt?: string;
+  updatedAt?: string;
+  items: PrintItem[];
+};
+
+function getErrorText(err: any, fallback = "Ocurrió un error"): string {
+  const raw = err?.response?.data;
+
+  if (typeof raw?.message === "string") return raw.message;
+
+  if (raw?.message && typeof raw.message === "object") {
+    const innerMsg =
+      typeof raw.message.message === "string" ? raw.message.message : fallback;
+    const errorId =
+      typeof raw.message.errorId === "string" ? raw.message.errorId : null;
+
+    return errorId ? `${innerMsg} (${errorId})` : innerMsg;
+  }
+
+  if (typeof raw?.error === "string") return raw.error;
+  if (typeof err?.message === "string") return err.message;
+
+  return fallback;
 }
 
-/**
- * ✅ Espera a que el ticket realmente exista en backend antes de imprimir.
- * Cambiá la URL si tu backend usa otro path.
- */
-async function waitForTicketPersisted(ticketId: string, token?: string) {
-  const tries = 3;
-  for (let i = 0; i < tries; i++) {
-    try {
-      await api.get<TicketDTO>(`/tickets/${encodeURIComponent(ticketId)}`, {
-        headers: {
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-          "Cache-Control": "no-cache",
-          Pragma: "no-cache",
-        },
-        params: { _ts: Date.now() },
-        validateStatus: (s) => s >= 200 && s < 300,
-      });
-      return true;
-    } catch {
-      await sleep(300);
-    }
-  }
-  return false;
+function moneyPrint(n?: number) {
+  if (typeof n !== "number" || Number.isNaN(n)) return "$ 0";
+  return `$ ${Number(n).toLocaleString("es-AR", {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 2,
+  })}`;
 }
-/* ================================================== */
+
+function formatDatePrint(iso?: string) {
+  if (!iso) return "—";
+  try {
+    const d = new Date(iso);
+    return d.toLocaleString("es-AR", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  } catch {
+    return String(iso);
+  }
+}
+
+function escapeHtml(value?: string | number) {
+  if (value === undefined || value === null) return "";
+  return String(value)
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
+}
+
+type BackendPrintPayload = {
+  header?: {
+    businessName?: string;
+    businessAddress?: string;
+    businessPhone?: string;
+    businessTaxId?: string;
+  };
+  ticketInfo?: {
+    id?: string;
+    date?: string;
+    userName?: string;
+    barName?: string;
+    eventName?: string;
+    paymentMethod?: string;
+  };
+  items?: Array<{
+    id?: string;
+    productId?: string;
+    productName?: string;
+    name?: string;
+    quantity?: number;
+    unitPrice?: number;
+    price?: number;
+    subtotal?: number;
+    tax?: number;
+    total?: number;
+  }>;
+  totals?: {
+    subtotal?: number;
+    tax?: number;
+    total?: number;
+  };
+  footer?: {
+    message?: string;
+    footer?: string;
+  };
+};
+
+function normalizeTicketForPrint(raw: any): TicketPrintFormat {
+  // Si ya viene en formato plano, lo dejamos como está
+  if (raw && Array.isArray(raw.items) && ("barName" in raw || "createdAt" in raw || "total" in raw)) {
+    return {
+      id: raw.id ?? "",
+      userId: raw.userId,
+      userName: raw.userName,
+      barId: raw.barId,
+      barName: raw.barName || "Festgo-Bar",
+      eventId: raw.eventId,
+      eventName: raw.eventName,
+      status: raw.status,
+      paymentMethod: raw.paymentMethod,
+      subtotal: Number(raw.subtotal ?? 0),
+      totalTax: Number(raw.totalTax ?? raw.tax ?? 0),
+      total: Number(raw.total ?? 0),
+      notes: raw.notes,
+      printed: raw.printed,
+      createdAt: raw.createdAt,
+      updatedAt: raw.updatedAt,
+      items: (raw.items || []).map((it: any) => ({
+        id: it.id,
+        productId: it.productId,
+        productName: it.productName || it.name,
+        name: it.name,
+        quantity: Number(it.quantity ?? 0),
+        unitPrice:
+          typeof it.unitPrice === "number"
+            ? Number(it.unitPrice)
+            : typeof it.price === "number"
+            ? Number(it.price)
+            : undefined,
+        price:
+          typeof it.price === "number"
+            ? Number(it.price)
+            : typeof it.unitPrice === "number"
+            ? Number(it.unitPrice)
+            : undefined,
+        subtotal: typeof it.subtotal === "number" ? Number(it.subtotal) : undefined,
+        tax: typeof it.tax === "number" ? Number(it.tax) : undefined,
+        total: Number(it.total ?? 0),
+      })),
+    };
+  }
+
+  // Si viene en formato anidado del backend
+  const data = raw as BackendPrintPayload;
+
+  return {
+    id: data.ticketInfo?.id || "",
+    userName: data.ticketInfo?.userName || "",
+    barName: data.ticketInfo?.barName || "Festgo-Bar",
+    eventName: data.ticketInfo?.eventName || data.header?.businessName || "",
+    paymentMethod: data.ticketInfo?.paymentMethod || "",
+    subtotal: Number(data.totals?.subtotal ?? 0),
+    totalTax: Number(data.totals?.tax ?? 0),
+    total: Number(data.totals?.total ?? 0),
+    createdAt: data.ticketInfo?.date,
+    notes: data.footer?.message,
+    items: (data.items || []).map((it) => {
+      const unit =
+        typeof it.unitPrice === "number"
+          ? it.unitPrice
+          : typeof it.price === "number"
+          ? it.price
+          : 0;
+
+      return {
+        id: it.id,
+        productId: it.productId,
+        productName: it.productName || it.name || "Producto",
+        name: it.name,
+        quantity: Number(it.quantity ?? 0),
+        unitPrice: Number(unit),
+        price: Number(unit),
+        subtotal: typeof it.subtotal === "number" ? Number(it.subtotal) : undefined,
+        tax: typeof it.tax === "number" ? Number(it.tax) : undefined,
+        total: Number(it.total ?? 0),
+      };
+    }),
+  };
+}
+
+function buildTicketPrintHtml(rawData: any) {
+  const data = normalizeTicketForPrint(rawData);
+
+  const businessName = "Festgo-Barra";
+  const subtotal = Number(data.subtotal ?? 0);
+  const total = Number(data.total ?? 0);
+
+  const paymentLabels: Record<string, string> = {
+    cash: "Efectivo",
+    card: "Tarjeta",
+    transfer: "Transferencia",
+    administrator: "Administrador",
+    dj: "DJ",
+  };
+
+  const paymentText = data.paymentMethod
+    ? paymentLabels[String(data.paymentMethod).toLowerCase()] || String(data.paymentMethod)
+    : "";
+
+  const itemsText = (data.items || [])
+    .map((it) => {
+      const itemName = it.productName || it.name || "Producto";
+      return [
+        itemName,
+        `Cantidad: ${it.quantity}`,
+      ].join("\n");
+    })
+    .join("\n\n");
+
+  const ticketText = [
+    "¡Gracias por su compra!",
+    businessName,
+    "",
+    formatDatePrint(data.createdAt),
+    data.eventName ? `Evento: ${data.eventName}` : "",
+    data.userName ? `Usuario: ${data.userName}` : "",
+    paymentText ? `Pago: ${paymentText}` : "",
+    "------------------------",
+    itemsText || "Sin ítems",
+    "------------------------",
+    `TOTAL: ${moneyPrint(subtotal)}`,
+    `TOTAL: ${moneyPrint(total)}`,
+    "",
+    "",
+    "",
+    "",
+    "",
+    "",
+  ]
+    .filter((line) => line !== "")
+    .join("\n");
+
+  return `
+    <!DOCTYPE html>
+    <html lang="es">
+      <head>
+        <meta charset="UTF-8" />
+        <title>Ticket</title>
+        <style>
+          html, body {
+            margin: 0;
+            padding: 0;
+            background: #fff;
+            color: #000;
+            font-family: "Courier New", Courier, monospace;
+          }
+
+          body {
+            font-size: 13px;
+          }
+
+          .ticket {
+            width: 72mm;
+            padding: 4mm 3mm 12mm 3mm;
+            box-sizing: border-box;
+          }
+
+          pre {
+            margin: 0;
+            white-space: pre-wrap;
+            word-break: break-word;
+            line-height: 1.35;
+            font-family: "Courier New", Courier, monospace;
+          }
+        </style>
+      </head>
+      <body>
+        <div class="ticket">
+          <pre>${escapeHtml(ticketText)}</pre>
+        </div>
+      </body>
+    </html>
+  `;
+}
+
+function printTicketInline(rawData: any) {
+  const iframe = document.createElement("iframe");
+  iframe.style.position = "fixed";
+  iframe.style.right = "0";
+  iframe.style.bottom = "0";
+  iframe.style.width = "0";
+  iframe.style.height = "0";
+  iframe.style.border = "0";
+  iframe.setAttribute("aria-hidden", "true");
+
+  document.body.appendChild(iframe);
+
+  const doc = iframe.contentWindow?.document;
+  if (!doc) {
+    iframe.remove();
+    return;
+  }
+
+  doc.open();
+  doc.write(buildTicketPrintHtml(rawData));
+  doc.close();
+
+  const triggerPrint = () => {
+    setTimeout(() => {
+      try {
+        iframe.contentWindow?.focus();
+        iframe.contentWindow?.print();
+      } finally {
+        setTimeout(() => {
+          iframe.remove();
+        }, 2000);
+      }
+    }, 700);
+  };
+
+  if (doc.readyState === "complete") {
+    triggerPrint();
+  } else {
+    iframe.onload = triggerPrint;
+  }
+}
 
 export default function BartenderCartPage() {
   const [eventId, setEventId] = useState<string>("");
@@ -221,14 +466,12 @@ export default function BartenderCartPage() {
   const [cartErr, setCartErr] = useState<string | null>(null);
 
   const [customerName, setCustomerName] = useState<string>("");
-  const [paymentMethod, setPaymentMethod] = useState<ConfirmBody["paymentMethod"]>("cash");
+  const [paymentMethod, setPaymentMethod] = useState<"cash" | "card" | "transfer" | "administrator" | "dj">("cash");
   const [notes, setNotes] = useState<string>("");
   const [confirming, setConfirming] = useState(false);
   const [confirmMsg, setConfirmMsg] = useState<string | null>(null);
   const [confirmErr, setConfirmErr] = useState<string | null>(null);
   const [lastTicketId, setLastTicketId] = useState<string | null>(null);
-
-  const [lastPrintFormat, setLastPrintFormat] = useState<PrintFormat | null>(null);
 
   const [clearing, setClearing] = useState(false);
   const [clearMsg, setClearMsg] = useState<string | null>(null);
@@ -257,7 +500,7 @@ export default function BartenderCartPage() {
     const arr = Array.isArray(data) ? data : data?.items || data?.data || [];
     return (arr || [])
       .map((e: any) => ({
-        id: e?.id ?? e?.eventId ?? e?.uuid ?? "",
+        id: e?._id ?? e?.id ?? e?.eventId ?? e?.uuid ?? "",
         name: e?.name ?? e?.title ?? e?.eventName ?? "(sin nombre)",
         date: e?.date ?? e?.startDate ?? e?.fecha,
       }))
@@ -268,9 +511,9 @@ export default function BartenderCartPage() {
     const arr = Array.isArray(data) ? data : data?.items || data?.data || [];
     return (arr || [])
       .map((b: any) => ({
-        id: b?.id ?? b?.barId ?? b?.uuid ?? "",
+        id: b?._id ?? b?.id ?? b?.barId ?? b?.uuid ?? "",
         name: b?.name ?? b?.barName ?? "(sin nombre)",
-        eventId: b?.eventId,
+        eventId: b?.eventId ?? b?.event?._id ?? b?.event?.id,
       }))
       .filter((b: BarOption) => b.id);
   }
@@ -284,16 +527,21 @@ export default function BartenderCartPage() {
         headers: token ? { Authorization: `Bearer ${token}` } : undefined,
         validateStatus: () => true,
       });
+
       if (res.status >= 400) {
         res = await api.get("/events", {
           headers: token ? { Authorization: `Bearer ${token}` } : undefined,
         });
       }
+
       const list = normalizeEvents(res.data);
       setEvents(list);
-      if (eventId && !list.some((e) => e.id === eventId)) setEventId("");
+
+      if (eventId && !list.some((e) => e.id === eventId)) {
+        setEventId("");
+      }
     } catch (err: any) {
-      setEventsErr(err?.response?.data?.message || "No se pudieron cargar los eventos.");
+      setEventsErr(getErrorText(err, "No se pudieron cargar los eventos."));
     } finally {
       setLoadingEvents(false);
     }
@@ -308,16 +556,21 @@ export default function BartenderCartPage() {
         headers: token ? { Authorization: `Bearer ${token}` } : undefined,
         validateStatus: () => true,
       });
+
       if (res.status >= 400) {
         res = await api.get(`/events/${encodeURIComponent(evId)}/bars`, {
           headers: token ? { Authorization: `Bearer ${token}` } : undefined,
         });
       }
+
       const list = normalizeBars(res.data);
       setBars(list);
-      if (barId && !list.some((b) => b.id === barId)) setBarId("");
+
+      if (barId && !list.some((b) => b.id === barId)) {
+        setBarId("");
+      }
     } catch (err: any) {
-      setBarsErr(err?.response?.data?.message || "No se pudieron cargar las barras del evento.");
+      setBarsErr(getErrorText(err, "No se pudieron cargar las barras del evento."));
       setBars([]);
       setBarId("");
     } finally {
@@ -344,6 +597,7 @@ export default function BartenderCartPage() {
         setCartErr("No autorizado: requiere rol bartender o admin.");
         return;
       }
+
       setLoadingCart(true);
       const token = getToken();
       const { data } = await api.get<CartResponse>("/bartender/cart", {
@@ -379,7 +633,7 @@ export default function BartenderCartPage() {
     } catch (e: any) {
       const sc = e?.response?.status;
       if (sc === 401 || sc === 403) setCartErr("No autorizado para obtener el carrito actual.");
-      else setCartErr(e?.response?.data?.message || "Error al obtener el carrito actual");
+      else setCartErr(getErrorText(e, "Error al obtener el carrito actual"));
     } finally {
       setLoadingCart(false);
     }
@@ -419,7 +673,6 @@ export default function BartenderCartPage() {
             "Content-Type": "application/json",
             ...(token ? { Authorization: `Bearer ${token}` } : {}),
           },
-          validateStatus: (s) => s >= 200 && s < 300,
         }
       );
 
@@ -430,29 +683,29 @@ export default function BartenderCartPage() {
       setTimeout(() => inputRef.current?.focus(), 0);
     } catch (e: any) {
       const sc = e?.response?.status;
-      if (sc === 400) setError(e?.response?.data?.message || "Formato inválido o stock insuficiente");
-      else if (sc === 404) setError(e?.response?.data?.message || "Producto no encontrado");
-      else setError(e?.response?.data?.message || "Error al procesar la entrada");
+      if (sc === 400) setError(getErrorText(e, "Formato inválido o stock insuficiente"));
+      else if (sc === 404) setError(getErrorText(e, "Producto no encontrado"));
+      else setError(getErrorText(e, "Error al procesar la entrada"));
     } finally {
       setSending(false);
     }
   }
 
-  /* =================== ✅ FIX: confirmar + verificar ticket antes de imprimir =================== */
   async function confirmCart() {
     setConfirmMsg(null);
     setConfirmErr(null);
     setLastTicketId(null);
-    setLastPrintFormat(null);
 
     if (!hasRole(["bartender", "admin"])) {
       setConfirmErr("No autorizado: requiere rol bartender o admin.");
       return;
     }
+
     if (!summary || !summary.items?.length) {
       setConfirmErr("El carrito está vacío.");
       return;
     }
+
     const bar = barId.trim();
     if (!bar) {
       setConfirmErr("Elegí una barra.");
@@ -460,61 +713,77 @@ export default function BartenderCartPage() {
       return;
     }
 
-    const body: ConfirmBody = {
-      barId: bar,
-      customerName: customerName.trim() || undefined,
-      paymentMethod: paymentMethod || undefined,
-      notes: notes.trim() || undefined,
-    };
-
     try {
       setConfirming(true);
       const token = getToken();
 
-      const { data } = await api.post<ConfirmResponse>("/bartender/cart/confirm", body, {
-        headers: {
-          "Content-Type": "application/json",
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
-        validateStatus: (s) => s >= 200 && s < 300,
+      const headers = {
+        "Content-Type": "application/json",
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      };
+
+      const createBody = {
+        barId: bar,
+        customerName: customerName.trim() || undefined,
+        notes: notes.trim() || undefined,
+      };
+
+      const { data: createdTicket } = await api.post<TicketDTO>("/tickets", createBody, {
+        headers,
       });
 
-      const tid = data.ticketId || "";
-      setConfirmMsg(data.message || "Ticket generado exitosamente.");
-      setLastTicketId(tid || null);
-      setLastPrintFormat(data.printFormat || null);
+      const ticketId = createdTicket?.id;
+      if (!ticketId) {
+        throw new Error("No se pudo obtener el id del ticket creado.");
+      }
 
-      // el backend limpia el carrito; reflejamos en UI
+      for (const it of summary.items) {
+        await api.patch(
+          `/tickets/${ticketId}`,
+          {
+            productId: it.productId,
+            quantity: Number(it.quantity),
+          },
+          { headers }
+        );
+      }
+
+      await api.patch(
+        `/tickets/${ticketId}`,
+        {
+          paymentMethod,
+          paidAmount: Number(summary.total || 0),
+        },
+        { headers }
+      );
+
+      const { data: printData } = await api.get(`/tickets/${ticketId}/print`, {
+  headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+});
+
+setConfirmMsg("Ticket generado exitosamente.");
+setLastTicketId(ticketId);
+
+printTicketInline(printData);
+
       setSummary(null);
       setProductInfo(null);
+      setCustomerName("");
+      setNotes("");
+      setPaymentMethod("cash");
 
-      // ✅ Verificar persistencia real antes de imprimir
-      if (tid && data.printFormat) {
-        const ok = await waitForTicketPersisted(tid, token || undefined);
-        if (!ok) {
-          // No imprimimos si no existe (evita "imprimió pero no contó")
-          setConfirmErr(
-            "⚠️ El ticket aún no figura persistido en el sistema. Reintentá en unos segundos (se evitó imprimir para no generar tickets no contados)."
-          );
-          return;
-        }
-
-        try {
-          printFromFormat(data.printFormat);
-        } catch {
-          // no bloquear si la impresión falla
-        }
-      }
+      try {
+        await api.delete("/bartender/cart", {
+          headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+        });
+      } catch {}
     } catch (e: any) {
-      const sc = e?.response?.status;
-      if (sc === 400) setConfirmErr(e?.response?.data?.message || "Carrito vacío o stock insuficiente");
-      else if (sc === 401 || sc === 403) setConfirmErr("No autorizado para confirmar el carrito.");
-      else setConfirmErr(e?.response?.data?.message || "Error al confirmar el carrito");
+      console.error("Error creando ticket:", e?.response?.data || e);
+      setConfirmErr(getErrorText(e, "Error al crear ticket"));
     } finally {
       setConfirming(false);
     }
   }
-  /* ============================================================================= */
 
   async function clearCart() {
     setClearMsg(null);
@@ -524,6 +793,7 @@ export default function BartenderCartPage() {
       setClearErr("No autorizado: requiere rol bartender o admin.");
       return;
     }
+
     if (!summary || !summary.items?.length) {
       setClearErr("El carrito ya está vacío.");
       return;
@@ -534,7 +804,6 @@ export default function BartenderCartPage() {
       const token = getToken();
       const { data } = await api.delete<{ message?: string }>("/bartender/cart", {
         headers: token ? { Authorization: `Bearer ${token}` } : undefined,
-        validateStatus: (s) => s >= 200 && s < 300,
       });
 
       setSummary(null);
@@ -544,7 +813,7 @@ export default function BartenderCartPage() {
     } catch (e: any) {
       const sc = e?.response?.status;
       if (sc === 401 || sc === 403) setClearErr("No autorizado para limpiar el carrito.");
-      else setClearErr(e?.response?.data?.message || "Error al limpiar el carrito");
+      else setClearErr(getErrorText(e, "Error al limpiar el carrito"));
     } finally {
       setClearing(false);
     }
@@ -558,6 +827,7 @@ export default function BartenderCartPage() {
       setDelErr("No autorizado: requiere rol bartender o admin.");
       return;
     }
+
     if (!productId) {
       setDelErr("Falta productId.");
       return;
@@ -572,7 +842,6 @@ export default function BartenderCartPage() {
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
         data: { productId },
-        validateStatus: (s) => s >= 200 && s < 300,
       });
 
       setSummary(data.cartSummary);
@@ -580,9 +849,9 @@ export default function BartenderCartPage() {
       if (!data.cartSummary.items?.length) setProductInfo(null);
     } catch (e: any) {
       const sc = e?.response?.status;
-      if (sc === 404) setDelErr(e?.response?.data?.message || "Ítem no encontrado en el carrito.");
-      else if (sc === 400) setDelErr(e?.response?.data?.message || "Solicitud inválida.");
-      else setDelErr(e?.response?.data?.message || "Error al eliminar el ítem del carrito.");
+      if (sc === 404) setDelErr(getErrorText(e, "Ítem no encontrado en el carrito."));
+      else if (sc === 400) setDelErr(getErrorText(e, "Solicitud inválida."));
+      else setDelErr(getErrorText(e, "Error al eliminar el ítem del carrito."));
     } finally {
       setDeleting((prev) => {
         const cp = { ...prev };
@@ -604,7 +873,12 @@ export default function BartenderCartPage() {
         <header className={styles.header}>
           <h1>🛒 Carrito</h1>
 
-          <button className={styles.secondaryButton} onClick={loadCart} disabled={loadingCart}>
+          <button
+            type="button"
+            className={styles.secondaryButton}
+            onClick={loadCart}
+            disabled={loadingCart}
+          >
             {loadingCart ? "Cargando..." : summary ? "Refrescar" : "Cargar Carrito"}
           </button>
         </header>
@@ -623,7 +897,6 @@ export default function BartenderCartPage() {
           </section>
         )}
 
-        {/* Entrada de datos base */}
         <section className={styles.section}>
           <h3 className={styles.sectionTitle}>Configuración</h3>
 
@@ -789,6 +1062,7 @@ export default function BartenderCartPage() {
                           <td>{it.unit || "—"}</td>
                           <td>
                             <button
+                              type="button"
                               className={`${styles.secondaryButton} ${styles.dangerButton}`}
                               onClick={() => deleteCartItem(it.productId)}
                               disabled={!!deleting[it.productId]}
@@ -811,7 +1085,6 @@ export default function BartenderCartPage() {
                 </table>
               </div>
 
-              {/* Confirmación */}
               <div style={{ marginTop: "2rem" }}>
                 <h4 className={styles.sectionTitle}>💳 Confirmar y Generar Ticket</h4>
 
@@ -837,12 +1110,14 @@ export default function BartenderCartPage() {
                     <select
                       className={styles.select}
                       value={paymentMethod}
-                      onChange={(e) => setPaymentMethod(e.target.value as ConfirmBody["paymentMethod"])}
+                      onChange={(e) =>
+                        setPaymentMethod(e.target.value as "cash" | "card" | "transfer" | "other" | "dj")
+                      }
                     >
                       <option value="cash">💵 Efectivo</option>
                       <option value="transfer">🏦 Transferencia</option>
-                      <option value="administrator">🧾 Administrador</option>
                       <option value="dj">🎧 DJ</option>
+                      <option value="administrator">📌 Administrador</option>
                     </select>
                   </div>
                 </div>
@@ -870,6 +1145,7 @@ export default function BartenderCartPage() {
                     )}
                   </div>
                 )}
+
                 {confirmErr && (
                   <div className={styles.alertError} style={{ marginTop: "1rem" }}>
                     ✗ {confirmErr}
@@ -878,6 +1154,7 @@ export default function BartenderCartPage() {
 
                 <div className={styles.buttonGroup}>
                   <button
+                    type="button"
                     className={styles.primaryButton}
                     onClick={confirmCart}
                     disabled={confirming || !summary.items?.length}
@@ -887,6 +1164,7 @@ export default function BartenderCartPage() {
                   </button>
 
                   <button
+                    type="button"
                     className={styles.secondaryButton}
                     onClick={() => {
                       setCustomerName("");
@@ -900,6 +1178,7 @@ export default function BartenderCartPage() {
                   </button>
 
                   <button
+                    type="button"
                     className={`${styles.secondaryButton} ${styles.dangerButton}`}
                     onClick={clearCart}
                     disabled={clearing || !summary.items?.length}
@@ -909,11 +1188,21 @@ export default function BartenderCartPage() {
                   </button>
 
                   <button
+                    type="button"
                     className={styles.secondaryButton}
-                    onClick={() => {
-                      if (lastPrintFormat) printFromFormat(lastPrintFormat);
+                    onClick={async () => {
+                      if (!lastTicketId) return;
+                      try {
+                        const token = getToken();
+                        const { data } = await api.get<TicketPrintFormat>(`/tickets/${lastTicketId}/print`, {
+                          headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+                        });
+                        printTicketInline(data);
+                      } catch (e: any) {
+                        setConfirmErr(getErrorText(e, "No se pudo reimprimir el ticket"));
+                      }
                     }}
-                    disabled={!lastPrintFormat}
+                    disabled={!lastTicketId}
                     title="Reimprimir último ticket"
                   >
                     🖨️ Reimprimir
@@ -939,7 +1228,6 @@ export default function BartenderCartPage() {
   );
 }
 
-/* UI helpers */
 function Card({ title, value }: { title: string; value: string | number }) {
   return (
     <div className={styles.statCard}>
@@ -971,174 +1259,4 @@ function formatDate(iso?: string) {
   } catch {
     return String(iso);
   }
-}
-
-/* ======================= PRINT DESDE printFormat ======================= */
-function printFromFormat(fmt: PrintFormat) {
-  const paper = fmt.printerSettings?.paperWidth || 58;
-  const fontSize = fmt.printerSettings?.fontSize || 12;
-  const fontFamily =
-    fmt.printerSettings?.fontFamily ||
-    "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace";
-  const currency = fmt.totals?.currency || fmt.ticket?.currency || "ARS";
-
-  const COLS = paper >= 80 ? 48 : fontSize <= 10 ? 42 : 32;
-
-  const money2 = (n?: number) => {
-    if (typeof n !== "number" || Number.isNaN(n)) return "—";
-    try {
-      return new Intl.NumberFormat(undefined, {
-        style: "currency",
-        currency,
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 2,
-      }).format(n);
-    } catch {
-      return `${currency} ${n.toFixed(2)}`;
-    }
-  };
-
-  const ivaRate = Number.isFinite((fmt.items?.[0] as any)?.taxRate)
-    ? Math.max(0, Number((fmt.items![0] as any).taxRate))
-    : (fmt.totals?.subtotal || 0) > 0
-    ? Math.round(((fmt.totals?.tax || 0) * 100) / fmt.totals!.subtotal)
-    : 0;
-
-  const title = (fmt.header?.businessName || "GROW BAR SYSTEM").toUpperCase();
-  const addr = fmt.header?.businessAddress || "";
-  const phone = fmt.header?.businessPhone || "";
-  const taxId = fmt.header?.businessTaxId || "";
-  const customerName = (fmt as any)?.ticket?.customerName || (fmt as any)?.customerName || "";
-
-  const line = (ch = "-") => ch.repeat(COLS);
-  const clamp = (s: string) => (s.length > COLS ? s.slice(0, COLS) : s);
-  const center = (s: string) => {
-    s = s.slice(0, COLS);
-    const pad = Math.max(0, Math.floor((COLS - s.length) / 2));
-    return " ".repeat(pad) + s + " ".repeat(Math.max(0, COLS - pad - s.length));
-  };
-  const kv = (left: string, right: string) => {
-    left = left || "";
-    right = right || "";
-    const maxLeft = Math.max(0, COLS - right.length);
-    const L = left.length > maxLeft ? left.slice(0, maxLeft) : left;
-    return L + " ".repeat(Math.max(0, COLS - (L.length + right.length))) + right;
-  };
-
-  const itemLines = (fmt.items || []).flatMap((it) => {
-    const name = clamp(String(it.name || ""));
-    const left = `${it.quantity} x ${money2(it.unitPrice)}`;
-    const right = money2(it.subtotal);
-    return [name, kv(left, right)];
-  });
-
-  const rows: string[] = [];
-  rows.push(line());
-  rows.push(center(title));
-  rows.push(line());
-  if (addr) rows.push(clamp(addr));
-  if (phone) rows.push(clamp(`Tel: ${phone}`));
-  if (taxId) rows.push(clamp(`RUC: ${taxId}`));
-  rows.push("");
-
-  rows.push(kv("Ticket:", fmt.ticket.ticketNumber));
-  rows.push(kv("Fecha:", `${fmt.ticket.date}   Hora: ${fmt.ticket.time}`));
-  if (fmt.ticket.eventName) rows.push(kv("Evento:", fmt.ticket.eventName));
-  if (fmt.ticket.barName) rows.push(kv("Barra:", fmt.ticket.barName));
-  rows.push(kv("Atendido por:", fmt.ticket.userName));
-  rows.push("PRODUCTOS");
-  rows.push(line());
-
-  rows.push(...itemLines);
-
-  rows.push(line());
-  rows.push(kv("Subtotal:", money2(fmt.totals.subtotal)));
-  rows.push(kv(`IVA (${ivaRate}%)`, money2(fmt.totals.tax)));
-  rows.push(line());
-  rows.push(kv("TOTAL:", money2(fmt.totals.total)));
-  rows.push("");
-
-  rows.push(kv("Método de pago:", (fmt.payment.method || "").toUpperCase()));
-  if (customerName) rows.push(kv("Cliente:", customerName));
-  if ((fmt as any)?.notes) {
-    rows.push("");
-    rows.push(clamp(`Notas: ${(fmt as any).notes}`));
-  }
-  rows.push("");
-  rows.push(fmt.footer?.thankYouMessage ? clamp(fmt.footer.thankYouMessage) : "¡Gracias por su compra!");
-  if (fmt.footer?.businessWebsite) rows.push(clamp(fmt.footer.businessWebsite));
-  if (fmt.footer?.receiptFooter) rows.push(clamp(fmt.footer.receiptFooter));
-  rows.push(line());
-
-  const text = rows.join("\n");
-
-  const html = `
-<!DOCTYPE html>
-<html>
-<head>
-<meta charset="utf-8" />
-<title>${escapeHtml(fmt.ticket.ticketNumber)}</title>
-<style>
-  @page { size: ${paper}mm auto; margin: 0; }
-  * { box-sizing: border-box; }
-  body {
-    margin: 0; padding: 0; width: ${paper}mm;
-    -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important;
-    background:#fff;
-  }
-  pre {
-    margin: 0; padding: 4mm 3mm;
-    font-family: ${fontFamily};
-    font-size: ${fontSize}px;
-    line-height: 1.35;
-    white-space: pre;
-    color:#111;
-  }
-</style>
-</head>
-<body>
-  <pre>${escapeHtml(text)}</pre>
-</body>
-</html>`;
-
-  const iframe = document.createElement("iframe");
-  iframe.style.position = "fixed";
-  iframe.style.right = "0";
-  iframe.style.bottom = "0";
-  iframe.style.width = "0";
-  iframe.style.height = "0";
-  iframe.style.border = "0";
-  document.body.appendChild(iframe);
-
-  const onLoad = () => {
-    try {
-      iframe.contentWindow?.focus();
-    } catch {}
-    try {
-      iframe.contentWindow?.print();
-    } catch {}
-    setTimeout(() => {
-      try {
-        iframe.remove();
-      } catch {}
-    }, 1000);
-  };
-
-  const doc = iframe.contentDocument || iframe.contentWindow?.document;
-  if (!doc) return;
-  doc.open();
-  doc.write(html);
-  doc.close();
-  if (iframe.contentDocument?.readyState === "complete") onLoad();
-  else iframe.onload = onLoad;
-}
-
-function escapeHtml(s?: string | number) {
-  if (s === undefined || s === null) return "";
-  return String(s)
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#039;");
 }

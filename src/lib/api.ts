@@ -2,7 +2,7 @@ import axios from "axios";
 import { getToken, logout } from "./auth";
 
 export const api = axios.create({
-  baseURL: "https://api.festgogest.com",
+  baseURL: "http://localhost:3002",
   headers: { "Content-Type": "application/json" },
 });
 
@@ -19,7 +19,6 @@ api.interceptors.response.use(
   (err) => {
     if (err?.response?.status === 401) {
       logout();
-      // opcional: redirigir a /login si estás en cliente
       if (typeof window !== "undefined") window.location.href = "/login";
     }
     return Promise.reject(err);

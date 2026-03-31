@@ -404,7 +404,7 @@ export default function DashboardPage() {
   useEffect(() => { void load(); }, []);
 
   return (
-    <Guard roles={["admin","bar_user"]}>
+    <Guard roles={["admin"]}>
       <Navbar />
       <main style={{padding:20, display:"grid", gap:12}}>
         <header style={{ display:"flex", gap:12, alignItems:"center", flexWrap:"wrap" }}>
