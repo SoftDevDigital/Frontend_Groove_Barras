@@ -1108,17 +1108,19 @@ printTicketInline(printData);
                   <div>
                     <label className={styles.label}>Método de Pago</label>
                     <select
-                      className={styles.select}
-                      value={paymentMethod}
-                      onChange={(e) =>
-                        setPaymentMethod(e.target.value as "cash" | "card" | "transfer" | "other" | "dj")
-                      }
-                    >
-                      <option value="cash">💵 Efectivo</option>
-                      <option value="transfer">🏦 Transferencia</option>
-                      <option value="dj">🎧 DJ</option>
-                      <option value="administrator">📌 Administrador</option>
-                    </select>
+  className={styles.select}
+  value={paymentMethod}
+  onChange={(e) =>
+    setPaymentMethod(
+      e.target.value as "cash" | "card" | "transfer" | "administrator" | "dj"
+    )
+  }
+>
+  <option value="cash">💵 Efectivo</option>
+  <option value="transfer">🏦 Transferencia</option>
+  <option value="dj">🎧 DJ</option>
+  <option value="administrator">📌 Administrador</option>
+</select>
                   </div>
                 </div>
 
