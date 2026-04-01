@@ -122,8 +122,6 @@ export default function BarSalesSummaryPage() {
         const res = await api.get<SalesSummary>(url, {
           headers: {
             ...(token ? { Authorization: `Bearer ${token}` } : {}),
-            "Cache-Control": "no-cache",
-            Pragma: "no-cache",
           },
           validateStatus: (s) => s >= 200 && s < 300,
         });
