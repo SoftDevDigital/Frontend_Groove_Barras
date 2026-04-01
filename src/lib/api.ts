@@ -2,7 +2,7 @@ import axios from "axios";
 import { getToken, logout } from "./auth";
 
 export const api = axios.create({
-  baseURL: "http://localhost:3002",
+  baseURL: "https://api.festgo-barras.com",
   headers: { "Content-Type": "application/json" },
 });
 
