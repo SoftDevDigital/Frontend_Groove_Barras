@@ -2,7 +2,7 @@ import axios from "axios";
 import { getToken, logout } from "./auth";
 
 export const api = axios.create({
-  baseURL: "https://api.festgo-barras.com",
+  baseURL: "https://api.devtech-bar.com",
   headers: { "Content-Type": "application/json" },
 });
 
